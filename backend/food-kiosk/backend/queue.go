@@ -71,25 +71,47 @@ func New(ctx context.Context, db *sql.DB) (*Service, error) {
 }
 
 func displayCode(code string) string {
-	var b strings.Builder
-	for _, r := range strings.ToUpper(code) {
-		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
-			b.WriteRune(r)
-			if b.Len() == 7 {
-				break
+	var parts []string
+	for _, raw := range strings.Split(code, "/") {
+		var b strings.Builder
+		for _, r := range strings.ToUpper(raw) {
+			if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+				b.WriteRune(r)
+				if b.Len() == 7 {
+					break
+				}
 			}
 		}
+		if b.Len() > 0 {
+			parts = append(parts, b.String())
+		}
 	}
-	if b.Len() == 0 {
+	if len(parts) == 0 {
 		return "SPECIAL"
 	}
-	return b.String()
+	// Keep whole codes, bounded so the payload stays small; the 16-char LCD
+	// truncates whatever does not fit.
+	out := ""
+	for _, part := range parts {
+		next := part
+		if out != "" {
+			next = out + "/" + part
+		}
+		if len(next) > 23 {
+			break
+		}
+		out = next
+	}
+	if out == "" {
+		out = parts[0]
+	}
+	return out
 }
 
 // reconcile recovers orders committed before a crash or created by existing
 // database callers. Classification is frozen once recorded, including its code.
 func (s *Service) reconcile(ctx context.Context) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT o.id, COALESCE((SELECT m.code FROM order_items i JOIN menu m ON m.id=i.menu_id WHERE i.order_id=o.id AND m.code <> 'MEAL' ORDER BY i.id LIMIT 1),'MEAL') FROM orders o LEFT JOIN fulfillment f ON f.order_id=o.id WHERE o.status='pending' AND f.order_id IS NULL ORDER BY o.id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT o.id, COALESCE((SELECT GROUP_CONCAT(m.code,'/') FROM order_items i JOIN menu m ON m.id=i.menu_id WHERE i.order_id=o.id AND m.code <> 'MEAL'),'MEAL') FROM orders o LEFT JOIN fulfillment f ON f.order_id=o.id WHERE o.status='pending' AND f.order_id IS NULL ORDER BY o.id`)
 	if err != nil {
 		return err
 	}

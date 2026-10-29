@@ -118,6 +118,7 @@ func TestPayloadAndInvalidAcknowledgements(t *testing.T) {
 		{Queue{Lane: CounterA}, "IDLE Q0"}, {Queue{Lane: Kitchen}, "IDLE Q0"}, {Queue{Lane: Ready}, "NONE W0"},
 		{Queue{CounterA, []Entry{{105, "MEAL"}, {106, "MEAL"}}}, "105 Q1"},
 		{Queue{Kitchen, []Entry{{106, "POR"}}}, "106 POR Q0"},
+		{Queue{Kitchen, []Entry{{106, "POR/CHK"}}}, "106 POR/CHK Q0"},
 		{Queue{Ready, []Entry{{106, "POR"}, {107, "CHK"}}}, "106 POR W2"},
 	}
 	for _, tt := range cases {
@@ -131,8 +132,50 @@ func TestPayloadAndInvalidAcknowledgements(t *testing.T) {
 			t.Errorf("payload %q: %v", payload, err)
 		}
 	}
-	if got := displayCode("pôr / test longer"); got != "PRTESTL" {
+	if got := displayCode("pôr / test longer"); got != "PR/TESTLON" {
 		t.Fatalf("unsafe display code: %q", got)
+	}
+}
+
+func TestMultipleItemsAppearInKitchenCode(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(filepath.Join(t.TempDir(), "multi.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.Initialize(db); err != nil {
+		t.Fatal(err)
+	}
+	user, err := database.CreateUser(ctx, db, "TEST002", "Student", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, code := range []string{"POR", "CHK"} {
+		if _, err := database.CreateMenuItem(ctx, db, code, code, 0, 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	id, err := database.CreateOrder(ctx, db, user, []database.OrderLine{
+		{Code: "POR", Quantity: 1},
+		{Code: "CHK", Quantity: 1},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := New(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := s.Snapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(q[1].Items) != 1 || q[1].Items[0].ID != id || q[1].Items[0].Code != "POR/CHK" {
+		t.Fatalf("kitchen queue = %+v, want one POR/CHK entry", q[1])
+	}
+	if got := q[1].Payload(); got != formatID(id)+" POR/CHK Q0" {
+		t.Fatalf("payload = %q", got)
 	}
 }
 

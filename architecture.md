@@ -68,10 +68,9 @@ transaction. If anything fails, nothing is written.
 The backend then looks at the item codes and picks a queue:
 
 - Order contains **only `MEAL`** → it joins the Counter A queue.
-- Order contains **anything else** → it joins the Kitchen queue as one token, with a
-  short code taken from the first non-MEAL item (at most 7 characters — `POR`,
-  `CHK`, `SNACK`). Mixed carts go through the kitchen too, so a combined order stays
-  one tray and one handover.
+- Order contains **anything else** → it joins the Kitchen queue as one token, with
+  the non-MEAL item codes joined (`POR/CHK`). Mixed carts go through the kitchen
+  too, so a combined order stays one tray and one handover.
 
 ### The fast path — standard meals
 
