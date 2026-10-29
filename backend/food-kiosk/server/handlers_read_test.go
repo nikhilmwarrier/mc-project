@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -194,5 +195,29 @@ func TestAdminLoginReportsRole(t *testing.T) {
 	me := decodeInto[map[string]any](t, data)
 	if me["role"] != string(RoleAdmin) {
 		t.Fatalf("role = %v, want admin", me["role"])
+	}
+}
+
+func TestListUsersIsAdminOnly(t *testing.T) {
+	ts, db := newTestServer(t)
+	admin := seedAdmin(t, ts, db, "BOSS", "admin-password")
+	registerUser(t, ts, "22CS200", "1111")
+	_, customer := registerUser(t, ts, "22CS201", "1111")
+
+	resp, body := doJSON(t, http.MethodGet, ts.URL+"/users", nil, admin)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("admin list users: status %d body %s", resp.StatusCode, body)
+	}
+	var list userListResponse
+	if err := json.Unmarshal(body, &list); err != nil {
+		t.Fatalf("decode users: %v", err)
+	}
+	if len(list.Users) != 2 {
+		t.Fatalf("users = %+v, want 2", list.Users)
+	}
+
+	resp, _ = doJSON(t, http.MethodGet, ts.URL+"/users", nil, customer)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("customer list users: status %d, want 403", resp.StatusCode)
 	}
 }

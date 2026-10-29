@@ -101,8 +101,9 @@
   </div>
 
   {#if loading}
-    <p style="color:#8b949e;padding:1rem">Loading…</p>
+    <p style="color:#999;padding:1rem">Loading…</p>
   {:else}
+    <div class="table-card">
     <table>
       <thead>
         <tr><th>ID</th><th>Name</th><th>Code</th><th>Price</th><th>Avail</th><th></th></tr>
@@ -122,35 +123,38 @@
             </td>
           </tr>
         {:else}
-          <tr><td colspan="6" style="color:#8b949e;text-align:center">No items</td></tr>
+          <tr><td colspan="6" style="color:#999;text-align:center">No items</td></tr>
         {/each}
       </tbody>
     </table>
+    </div>
   {/if}
 </section>
 
 <style>
-  .panel { padding: 1rem 1.5rem; }
+  .panel { padding: 1.25rem 1.5rem; }
 
   .form-box {
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    padding: .75rem 1rem;
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 16px;
+    padding: 1rem;
     margin-bottom: 1rem;
   }
   .form-row { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
-  .field { flex: 1; min-width: 120px; }
-  .field.short { max-width: 120px; }
-  .field.check { max-width: 110px; }
+  .field { flex: 1; min-width: 130px; }
+  .field.short { max-width: 130px; }
+  .field.check { max-width: 120px; }
   .field.actions { flex: 0; }
-  .toggle { display: flex; gap: .3rem; align-items: center; cursor: pointer; font-size: .8rem; }
+  .toggle { display: flex; gap: .3rem; align-items: center; cursor: pointer; font-size: .8rem; color: #555; }
   .btn-row { display: flex; gap: .3rem; }
 
+  .table-card { background: #fff; border: 1px solid #ececec; border-radius: 16px; overflow: hidden; }
   table { width: 100%; border-collapse: collapse; font-size: .8rem; }
-  th, td { padding: .4rem .6rem; text-align: left; border-bottom: 1px solid #21262d; }
-  th { color: #8b949e; font-weight: 600; }
-  tr.inactive td { opacity: .5; }
-  .row-actions { display: flex; gap: .25rem; }
-  code { background: #21262d; padding: .1rem .3rem; border-radius: 3px; }
+  th, td { padding: .55rem .75rem; text-align: left; border-bottom: 1px solid #f0f0f0; }
+  th { color: #777; font-weight: 600; font-size: .72rem; }
+  tbody tr:last-child td { border-bottom: none; }
+  tr.inactive td { opacity: .45; }
+  .row-actions { display: flex; gap: .3rem; }
+  code { background: #f4f4f4; padding: .1rem .3rem; border-radius: 5px; font-size: .75rem; }
 </style>

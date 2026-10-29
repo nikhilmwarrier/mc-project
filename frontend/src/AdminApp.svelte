@@ -7,43 +7,32 @@
   let { me, onlogout } = $props();
 
   const TABS = [
-    { key: 'queue',  label: '📡 Queues' },
-    { key: 'orders', label: '📋 Orders' },
-    { key: 'menu',   label: '🍛 Menu' },
-    { key: 'users',  label: '👤 Users' },
+    { key: 'queue',  label: 'Queues' },
+    { key: 'orders', label: 'Orders' },
+    { key: 'menu',   label: 'Menu' },
+    { key: 'users',  label: 'Users' },
   ];
 
   let tab = $state('queue');
   let log = $state([]);
+  let recent = $derived(log.slice(0, 3));
 </script>
 
-<div class="shell">
-  <nav class="sidebar">
-    <div class="logo">🍽 Canteen <span class="tag">admin</span></div>
+<div class="admin">
+  <header class="topbar">
+    <div class="brand">CAMPUS <span>KITCHEN</span><em>admin</em></div>
 
-    {#each TABS as t}
-      <button class="nav-btn" class:active={tab === t.key} onclick={() => tab = t.key}>
-        {t.label}
-      </button>
-    {/each}
-
-    <div class="spacer"></div>
+    <nav class="tabs">
+      {#each TABS as t}
+        <button class="tab" class:active={tab === t.key} onclick={() => tab = t.key}>{t.label}</button>
+      {/each}
+    </nav>
 
     <div class="who">
-      <span class="badge admin">{me.role}</span>
-      <span class="username">{me.roll_no ?? me.name}</span>
+      <span>{me.roll_no ?? me.name}</span>
+      <button class="ghost" onclick={onlogout}>Logout</button>
     </div>
-    <button class="nav-btn logout" onclick={onlogout}>← Logout</button>
-
-    <div class="log-box">
-      <div class="log-title">— log —</div>
-      {#each log as entry}
-        <div class="log-entry">{entry}</div>
-      {:else}
-        <div class="log-entry empty">no activity yet</div>
-      {/each}
-    </div>
-  </nav>
+  </header>
 
   <main class="main">
     {#if tab === 'queue'}
@@ -56,75 +45,93 @@
       <UsersPanel bind:log />
     {/if}
   </main>
+
+  {#if recent.length}
+    <div class="toasts" aria-live="polite">
+      {#each recent as entry}
+        <div class="toast">{entry}</div>
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>
-  .shell { display: flex; height: 100vh; overflow: hidden; }
+  .admin { min-height: 100vh; background: #f7f7f7; }
 
-  .sidebar {
-    width: 200px;
-    min-width: 200px;
-    background: #010409;
-    border-right: 1px solid #21262d;
-    display: flex;
-    flex-direction: column;
-    padding: .75rem .5rem;
-    gap: .2rem;
-    overflow-y: auto;
-  }
-
-  .logo {
-    font-size: .9rem;
-    font-weight: 700;
-    color: #58a6ff;
-    letter-spacing: .1em;
-    padding: .3rem .6rem .6rem;
-  }
-  .tag { font-size: .6rem; color: #8b949e; letter-spacing: .1em; text-transform: uppercase; }
-
-  .nav-btn {
-    width: 100%;
-    text-align: left;
-    background: transparent;
-    border: none;
-    border-radius: 5px;
-    padding: .4rem .6rem;
-    font-size: .8rem;
-    color: #8b949e;
-    cursor: pointer;
-    transition: background .1s, color .1s;
-    font-family: inherit;
-  }
-  .nav-btn:hover  { background: #21262d; color: #e6edf3; }
-  .nav-btn.active { background: #1f3556; color: #58a6ff; }
-  .nav-btn.logout { color: #f85149; margin-top: .25rem; }
-  .nav-btn.logout:hover { background: #3d1f1f; }
-
-  .spacer { flex: 1; }
-
-  .who {
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
     display: flex;
     align-items: center;
-    gap: .4rem;
-    padding: .3rem .6rem;
-    font-size: .75rem;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    padding: .85rem 1.5rem;
+    background: rgba(255, 255, 255, .94);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid #ececec;
   }
-  .username { color: #c9d1d9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .log-box {
-    margin-top: .5rem;
-    border-top: 1px solid #21262d;
-    padding-top: .5rem;
-    font-size: .65rem;
+  .brand { font-size: 1.05rem; font-weight: 800; letter-spacing: -.02em; }
+  .brand span { color: #2e8b57; }
+  .brand em {
+    font-style: normal;
+    font-size: .6rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #999;
+    margin-left: .5rem;
+  }
+
+  .tabs { display: flex; gap: .25rem; flex: 1; flex-wrap: wrap; }
+  .tab {
+    border: none;
+    background: transparent;
+    color: #777;
+    font-weight: 600;
+    font-size: .82rem;
+    padding: .4rem .7rem;
+    border-radius: 999px;
+  }
+  .tab:hover:not(.active) { background: #f2f2f2; color: #333; }
+  .tab.active { background: #e8f5ee; color: #1f6f45; }
+
+  .who { display: flex; align-items: center; gap: .75rem; font-size: .78rem; color: #777; }
+  .ghost {
+    border: none;
+    background: transparent;
+    color: #999;
+    font-size: .78rem;
+    padding: .3rem .4rem;
+  }
+  .ghost:hover { color: #1b1b1b; background: transparent; }
+
+  .main { max-width: 1120px; margin: 0 auto; }
+
+  .toasts {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 30;
     display: flex;
     flex-direction: column;
-    gap: .1rem;
-    max-height: 200px;
-    overflow-y: auto;
+    gap: .4rem;
+    max-width: 340px;
   }
-  .log-title { color: #30363d; text-transform: uppercase; letter-spacing: .08em; margin-bottom: .2rem; }
-  .log-entry { color: #6e7681; word-break: break-all; }
-  .log-entry.empty { color: #30363d; }
+  .toast {
+    background: #1b1b1b;
+    color: #f4f4f4;
+    font-size: .72rem;
+    line-height: 1.35;
+    border-radius: 10px;
+    padding: .5rem .7rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+    word-break: break-word;
+  }
 
-  .main { flex: 1; overflow-y: auto; background: #0d1117; }
+  @media (max-width: 640px) {
+    .topbar { gap: .5rem; padding: .7rem 1rem; }
+    .tabs { order: 3; flex-basis: 100%; }
+  }
 </style>

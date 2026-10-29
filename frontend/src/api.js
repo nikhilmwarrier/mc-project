@@ -76,7 +76,8 @@ async function api(path, { method = 'GET', body, noAuth = false, query } = {}) {
 export const getMe = () => api('/auth/me');
 
 // ── Users ───────────────────────────────────────────────────────────────────
-export const createUser = (body)      => api('/users', { method: 'POST', body });
+export const getUsers     = ()          => api('/users');
+export const createUser   = (body)      => api('/users', { method: 'POST', body });
 export const topUp      = (id, paise) => api(`/users/${id}/topup`, { method: 'POST', body: { amount_paise: paise } });
 export const getWallet  = (userId)    => api('/wallet', { query: { user_id: userId } });
 

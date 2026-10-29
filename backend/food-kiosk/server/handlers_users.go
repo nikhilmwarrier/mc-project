@@ -70,6 +70,32 @@ func (s *server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 
 const minPINLength = 4
 
+type userSummaryResponse struct {
+	ID     int64  `json:"id"`
+	RollNo string `json:"roll_no"`
+	Name   string `json:"name"`
+}
+
+type userListResponse struct {
+	Users []userSummaryResponse `json:"users"`
+}
+
+// handleListUsers backs the admin dropdowns. There is no public user directory,
+// so this is admin-only.
+func (s *server) handleListUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := database.ListUsers(r.Context(), s.db)
+	if err != nil {
+		writeDBError(w, err)
+		return
+	}
+
+	resp := userListResponse{Users: make([]userSummaryResponse, len(users))}
+	for i, u := range users {
+		resp.Users[i] = userSummaryResponse{ID: u.ID, RollNo: u.RollNo, Name: u.Name}
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
 type topUpRequest struct {
 	AmountPaise int64 `json:"amount_paise"`
 }

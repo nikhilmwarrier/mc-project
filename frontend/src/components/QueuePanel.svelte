@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { getQueue, createOrder, ackQueue, getMenu } from '../api.js';
+  import { getQueue, createOrder, ackQueue, getMenu, getUsers } from '../api.js';
 
   let { me, log = $bindable([]) } = $props();
   const push = (msg) => { log = [msg, ...log].slice(0, 20); };
@@ -18,6 +18,7 @@
   });
 
   let menuItems = $state([]);
+  let users = $state([]);
   let selectedCode = $state('');
   let qty = $state(1);
   let userId = $state('');
@@ -71,6 +72,7 @@
   let interval;
   onMount(async () => {
     try { const m = await getMenu(); menuItems = m.items ?? []; } catch {}
+    try { users = (await getUsers()).users ?? []; } catch {}
     await refresh();
     interval = setInterval(refresh, 2000);
   });
@@ -116,12 +118,13 @@
         </select>
       </div>
       <div class="field">
-        <label for="enqueue-user">Customer user id</label>
-        {#if me?.role === 'admin'}
-          <input id="enqueue-user" type="number" min="1" bind:value={userId} placeholder="required" />
-        {:else}
-          <input id="enqueue-user" value={me?.id ?? ''} disabled />
-        {/if}
+        <label for="enqueue-user">Customer</label>
+        <select id="enqueue-user" bind:value={userId}>
+          <option value="">— select user —</option>
+          {#each users as u}
+            <option value={u.id}>{u.name} ({u.roll_no})</option>
+          {/each}
+        </select>
       </div>
       <div class="field qty">
         <label for="enqueue-qty">Qty</label>
@@ -137,53 +140,57 @@
 </section>
 
 <style>
-  .panel { padding: 1rem 1.5rem; }
+  .panel { padding: 1.25rem 1.5rem; }
+  .panel > h2 { font-size: 1.05rem; margin-bottom: .75rem; }
 
   .lane-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
   }
+  @media (max-width: 720px) { .lane-grid { grid-template-columns: 1fr; } }
 
   .lane-card {
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    padding: .75rem 1rem;
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 16px;
+    padding: 1rem;
     display: flex;
     flex-direction: column;
-    gap: .4rem;
+    gap: .45rem;
   }
 
-  .lane-header { display: flex; align-items: center; gap: .4rem; font-size: .85rem; font-weight: 600; }
+  .lane-header { display: flex; align-items: center; gap: .4rem; font-size: .88rem; font-weight: 700; }
   .lane-emoji  { font-size: 1rem; }
   .lane-label  { flex: 1; }
-  .lane-head   { font-size: .75rem; color: #8b949e; }
+  .lane-head   { font-size: .78rem; color: #777; }
 
-  .lane-items { display: flex; flex-wrap: wrap; gap: .25rem; min-height: 1.5rem; }
+  .lane-items { display: flex; flex-wrap: wrap; gap: .3rem; min-height: 1.5rem; }
   .token {
     font-size: .7rem;
-    background: #21262d;
-    border: 1px solid #30363d;
-    border-radius: 4px;
-    padding: .1rem .3rem;
-    color: #c9d1d9;
+    background: #f4f4f4;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    padding: .1rem .35rem;
+    color: #444;
   }
-  .token.head { border-color: #58a6ff; color: #58a6ff; font-weight: 700; }
-  .empty { font-size: .75rem; color: #484f58; }
+  .token.head { border-color: #2e8b57; color: #1f6f45; background: #e8f5ee; font-weight: 700; }
+  .empty { font-size: .75rem; color: #aaa; }
+
+  .lane-card button { margin-top: .35rem; }
 
   .enqueue-box {
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    padding: .75rem 1rem;
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 16px;
+    padding: 1rem;
   }
   .enqueue-row { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
-  .field { flex: 1; min-width: 130px; }
-  .field.qty { max-width: 70px; }
-  .field.route { flex: 0 0 auto; min-width: 150px; }
-  .route-label { display: block; font-size: .7rem; color: #8b949e; }
-  .field.route strong { font-size: .8rem; color: #58a6ff; }
-  .enqueue-btn { white-space: nowrap; height: 2rem; }
+  .field { flex: 1; min-width: 140px; }
+  .field.qty { max-width: 80px; }
+  .field.route { flex: 0 0 auto; min-width: 130px; }
+  .route-label { display: block; font-size: .72rem; color: #777; margin-bottom: .35rem; }
+  .field.route strong { font-size: .85rem; color: #1f6f45; }
+  .enqueue-btn { white-space: nowrap; height: 2.1rem; }
 </style>

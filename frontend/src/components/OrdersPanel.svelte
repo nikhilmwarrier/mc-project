@@ -1,15 +1,25 @@
 <script>
   import { onMount } from 'svelte';
-  import { listOrders, getOrder, cancelOrder, auth } from '../api.js';
+  import { listOrders, getOrder, cancelOrder, getUsers } from '../api.js';
 
   let { log = $bindable([]) } = $props();
   const push = (msg) => { log = [msg, ...log].slice(0, 20); };
 
   let status  = $state('pending');
   let userId  = $state('');
+  let users   = $state([]);
   let orders  = $state([]);
   let detail  = $state(null);
   let loading = $state(false);
+
+  const nameOf = (id) => {
+    const u = users.find(x => x.id === id);
+    return u ? u.name : `#${id}`;
+  };
+
+  async function loadUsers() {
+    try { users = (await getUsers()).users ?? []; } catch { users = []; }
+  }
 
   async function load() {
     loading = true;
@@ -17,7 +27,7 @@
     try {
       const q = {};
       if (status) q.status = status;
-      if (userId && auth.isAdmin) q.user_id = userId;
+      if (userId) q.user_id = userId;
       const res = await listOrders(q);
       orders = res.orders ?? [];
     } catch (e) { push(`❌ orders: ${e.message}`); }
@@ -38,7 +48,10 @@
     } catch (e) { push(`❌ cancel: ${e.message}`); }
   }
 
-  onMount(load);
+  onMount(async () => {
+    await loadUsers();
+    await load();
+  });
 </script>
 
 <section class="panel">
@@ -52,12 +65,15 @@
         <option value="cancelled">cancelled</option>
       </select>
     </div>
-    {#if auth.isAdmin}
-      <div class="field">
-        <label for="orders-userid">User ID</label>
-        <input id="orders-userid" type="number" bind:value={userId} placeholder="all users" />
-      </div>
-    {/if}
+    <div class="field">
+      <label for="orders-userid">User</label>
+      <select id="orders-userid" bind:value={userId} onchange={load}>
+        <option value="">All users</option>
+        {#each users as u}
+          <option value={u.id}>{u.name} ({u.roll_no})</option>
+        {/each}
+      </select>
+    </div>
     <div class="field actions">
       <span aria-hidden="true">&nbsp;</span>
       <button class="primary" onclick={load}>Refresh</button>
@@ -67,7 +83,7 @@
   <div class="body">
     <div class="list">
       {#if loading}
-        <p style="color:#8b949e;padding:1rem">Loading…</p>
+        <p style="color:#999;padding:1rem">Loading…</p>
       {:else}
         <table>
           <thead>
@@ -77,7 +93,7 @@
             {#each orders as o (o.id)}
               <tr class:selected={detail?.id === o.id} onclick={() => openDetail(o.id)}>
                 <td>{o.id}</td>
-                <td>{o.user_id}</td>
+                <td>{nameOf(o.user_id)}</td>
                 <td><span class="badge {o.status}">{o.status}</span></td>
                 <td>₹{(o.total_paise / 100).toFixed(2)}</td>
                 <td class="ts">{o.created_at.slice(0,16).replace('T',' ')}</td>
@@ -88,7 +104,7 @@
                 </td>
               </tr>
             {:else}
-              <tr><td colspan="6" style="color:#8b949e;text-align:center">No orders</td></tr>
+              <tr><td colspan="6" style="color:#999;text-align:center">No orders</td></tr>
             {/each}
           </tbody>
         </table>
@@ -124,33 +140,42 @@
 </section>
 
 <style>
-  .panel { padding: 1rem 1.5rem; }
+  .panel { padding: 1.25rem 1.5rem; }
 
-  .filter-row { display: flex; gap: .75rem; align-items: flex-end; margin-bottom: 1rem; }
-  .field { flex: 1; max-width: 160px; }
+  .filter-row { display: flex; gap: .75rem; align-items: flex-end; margin-bottom: 1rem; flex-wrap: wrap; }
+  .field { flex: 1; max-width: 190px; }
   .field.actions { flex: 0; }
 
   .body { display: flex; gap: 1rem; align-items: flex-start; }
-  .list { flex: 1; overflow-x: auto; }
+  .list {
+    flex: 1;
+    overflow-x: auto;
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 16px;
+  }
 
   table { width: 100%; border-collapse: collapse; font-size: .8rem; }
-  th, td { padding: .4rem .6rem; text-align: left; border-bottom: 1px solid #21262d; }
-  th { color: #8b949e; font-weight: 600; }
-  tr:hover td { background: #161b22; cursor: pointer; }
-  tr.selected td { background: #1c2128; }
-  .ts { font-size: .7rem; color: #8b949e; white-space: nowrap; }
-  .sm { padding: .15rem .35rem; font-size: .7rem; }
+  th, td { padding: .55rem .75rem; text-align: left; border-bottom: 1px solid #f0f0f0; }
+  th { color: #777; font-weight: 600; font-size: .72rem; }
+  tbody tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; cursor: pointer; }
+  tr.selected td { background: #eef7f1; }
+  .ts { font-size: .7rem; color: #999; white-space: nowrap; }
+  .sm { padding: .15rem .4rem; font-size: .7rem; border-radius: 8px; }
 
   .detail {
     width: 320px;
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    padding: .75rem 1rem;
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 16px;
+    padding: 1rem;
     font-size: .8rem;
     flex-shrink: 0;
   }
   .detail-header { display: flex; align-items: center; gap: .4rem; margin-bottom: .5rem; }
   .detail-table { width: 100%; margin-bottom: .5rem; }
-  .detail-total { text-align: right; font-weight: 700; color: #58a6ff; }
+  .detail-total { text-align: right; font-weight: 800; color: #1f6f45; }
+
+  @media (max-width: 760px) { .body { flex-direction: column; } .detail { width: 100%; } }
 </style>

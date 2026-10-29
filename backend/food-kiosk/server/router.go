@@ -47,6 +47,7 @@ func NewRouter(cfg Config, db *sql.DB, queues *backend.Service) http.Handler {
 	mux.HandleFunc("DELETE /menu/{id}", s.adminOnly(s.handleDeleteMenu))
 
 	mux.HandleFunc("POST /users", s.handleCreateUser)
+	mux.HandleFunc("GET /users", s.adminOnly(s.handleListUsers))
 	mux.HandleFunc("POST /users/{id}/topup", s.protect(s.handleTopUp))
 	mux.HandleFunc("GET /wallet", s.protect(s.handleWallet))
 	mux.HandleFunc("POST /orders", s.protect(s.handleCreateOrder))

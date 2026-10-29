@@ -90,6 +90,20 @@ paths:
                 properties:
                   id:
                     type: integer
+    get:
+      summary: List users (admin; backs dashboard dropdowns)
+      responses:
+        '200':
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      type: object
   /users/{id}/topup:
     post:
       summary: Top‑up user balance
