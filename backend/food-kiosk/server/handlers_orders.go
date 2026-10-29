@@ -140,6 +140,7 @@ type orderListResponse struct {
 type orderDetailResponse struct {
 	orderSummaryResponse
 	Items []orderItemResponse `json:"items"`
+	Ready bool                `json:"ready"`
 }
 
 // handleListOrders returns order history. A customer sees their own; an admin
@@ -226,6 +227,12 @@ func (s *server) handleGetOrder(w http.ResponseWriter, r *http.Request) {
 		orderSummaryResponse: orderToSummary(*order),
 		Items:                make([]orderItemResponse, len(order.Items)),
 	}
+	ready, err := s.queues.IsReady(r.Context(), orderID)
+	if err != nil {
+		writeDBError(w, err)
+		return
+	}
+	resp.Ready = ready
 	for i, item := range order.Items {
 		resp.Items[i] = orderItemResponse{
 			ID:             item.ID,

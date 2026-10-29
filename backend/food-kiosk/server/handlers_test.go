@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -152,6 +153,19 @@ func TestQueueReadyLane(t *testing.T) {
 	}
 	if q.Head == nil || *q.Head != order.ID || q.Depth != 1 {
 		t.Fatalf("ready lane = %+v, want head %d depth 1", q, order.ID)
+	}
+
+	// The customer's order detail carries the ready flag the storefront polls.
+	detailResp, body := doJSON(t, http.MethodGet, fmt.Sprintf("%s/orders/%d", ts.URL, order.ID), nil, token)
+	if detailResp.StatusCode != http.StatusOK {
+		t.Fatalf("order detail: status %d body %s", detailResp.StatusCode, body)
+	}
+	var detail orderDetailResponse
+	if err := json.Unmarshal(body, &detail); err != nil {
+		t.Fatalf("decode detail: %v", err)
+	}
+	if !detail.Ready {
+		t.Fatal("packed order should report ready=true")
 	}
 }
 

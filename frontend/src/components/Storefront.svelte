@@ -1,6 +1,6 @@
 <script>
-  import { onMount } from 'svelte';
-  import { getMenu, getWallet, createOrder } from '../api.js';
+  import { onMount, onDestroy } from 'svelte';
+  import { getMenu, getWallet, createOrder, getOrder } from '../api.js';
 
   let { me, onlogout } = $props();
 
@@ -23,6 +23,9 @@
   let placing = $state(false);
   let placeError = $state('');
   let placed = $state(null);
+
+  let tracked = $state(null);
+  let pollTimer = null;
 
   const money = (paise) => paise % 100 === 0
     ? `₹${paise / 100}`
@@ -65,16 +68,66 @@
     try { wallet = (await getWallet(me.id)).balance_paise; } catch { wallet = null; }
   }
 
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  function forgetTracking() {
+    stopPolling();
+    tracked = null;
+    try { sessionStorage.removeItem('canteen_track'); } catch { /* private mode */ }
+  }
+
+  function rememberTracking(id) {
+    try { sessionStorage.setItem('canteen_track', String(id)); } catch { /* private mode */ }
+  }
+
+  function notifyReady(id) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      new Notification(`Token #${id} ready`, {
+        body: 'Collect at Counter 2',
+        tag: `canteen-order-${id}`,
+      });
+    } catch { /* some browsers require a service worker */ }
+  }
+
+  async function checkTracked() {
+    if (!tracked || tracked.status !== 'pending') return;
+    try {
+      const o = await getOrder(tracked.id);
+      const becameReady = o.ready && !tracked.ready;
+      tracked = { id: o.id, ready: !!o.ready, status: o.status };
+      if (becameReady) notifyReady(o.id);
+      if (o.status !== 'pending') stopPolling();
+    } catch { /* transient; poll again */ }
+  }
+
+  function startTracking(id) {
+    stopPolling();
+    tracked = { id, ready: false, status: 'pending' };
+    rememberTracking(id);
+    pollTimer = setInterval(checkTracked, 4000);
+    checkTracked();
+  }
+
+  function askNotifyPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  }
+
   async function placeOrder() {
     if (!lines.length) return;
     placing = true;
     placeError = '';
     try {
       const res = await createOrder(me.id, lines.map(l => ({ code: l.code, quantity: l.qty })));
-      placed = { id: res.id, total: res.total_paise, special: cartHasSpecial, mixed: cartHasSpecial && lines.some(l => l.code === 'MEAL') };
+      placed = { id: res.id, special: cartHasSpecial };
       cart = {};
       cartOpen = false;
       await refreshWallet();
+      startTracking(res.id);
     } catch (e) {
       placeError = e.message;
     } finally {
@@ -92,7 +145,21 @@
       loading = false;
     }
     await refreshWallet();
+
+    let saved = null;
+    try { saved = Number(sessionStorage.getItem('canteen_track')); } catch { /* private mode */ }
+    if (saved) {
+      try {
+        const o = await getOrder(saved);
+        if (o.status === 'pending') {
+          tracked = { id: o.id, ready: !!o.ready, status: o.status };
+          pollTimer = setInterval(checkTracked, 4000);
+        }
+      } catch { /* order gone */ }
+    }
   });
+
+  onDestroy(stopPolling);
 </script>
 
 <div class="storefront">
@@ -100,49 +167,54 @@
     <div class="brand">CAMPUS <span>KITCHEN</span></div>
     <div class="top-actions">
       {#if wallet !== null}
-        <span class="wallet" title="Wallet balance">₹{(wallet / 100).toFixed(2)}</span>
+        <span class="wallet">₹{(wallet / 100).toFixed(2)}</span>
       {/if}
       <button class="ghost" onclick={onlogout}>Logout</button>
     </div>
   </header>
 
-  <main class="content">
-    <div class="hello">
-      <h1>Hey, {me.name ?? me.roll_no} 👋</h1>
-      <p>Skip the queue. Order, then collect at your counter.</p>
+  {#if tracked}
+    <div class="track" class:ready={tracked.ready} class:done={tracked.status !== 'pending'}>
+      <span class="track-text">
+        {#if tracked.status === 'completed'}
+          #{tracked.id} collected
+        {:else if tracked.ready}
+          #{tracked.id} ready · Counter 2
+        {:else}
+          #{tracked.id} preparing
+        {/if}
+      </span>
+      <button class="ghost" onclick={forgetTracking}>✕</button>
     </div>
+  {/if}
 
+  <main class="content">
     <div class="searchbox">
       <span aria-hidden="true">🔍</span>
-      <input bind:value={search} placeholder="Search for meals, porotta, snacks…" aria-label="Search the menu" />
+      <input bind:value={search} placeholder="Search menu" aria-label="Search the menu" />
     </div>
 
     <div class="chips" role="group" aria-label="Filter by counter">
       <button class="chip" class:active={section === 'all'} onclick={() => section = 'all'}>All</button>
-      <button class="chip" class:active={section === 'a'} onclick={() => section = 'a'}>Counter A · Meals</button>
-      <button class="chip" class:active={section === 'b'} onclick={() => section = 'b'}>Counter B · Other</button>
+      <button class="chip" class:active={section === 'a'} onclick={() => section = 'a'}>Counter 1</button>
+      <button class="chip" class:active={section === 'b'} onclick={() => section = 'b'}>Counter 2</button>
     </div>
 
     {#if loading}
-      <p class="state">Loading today's menu…</p>
+      <p class="state">Loading…</p>
     {:else if loadError}
-      <p class="state error">Could not load the menu: {loadError}</p>
+      <p class="state error">{loadError}</p>
     {:else if !visible.length}
-      <p class="state">Nothing matches that search.</p>
+      <p class="state">No items.</p>
     {:else}
       {#if groupA.length && section !== 'b'}
         <section class="group">
-          <div class="group-head">
-            <h2>Counter A</h2>
-            <span>Meals · served in seconds</span>
-          </div>
+          <h2>Counter 1</h2>
           {#each groupA as item (item.id)}
             <article class="card">
               <div class="card-body">
                 <h3>{item.item_name}</h3>
                 <div class="price">{money(item.price_paise)}</div>
-                <div class="meta"><code>{item.code}</code> · meal line</div>
-                <div class="tagline">Collect at Counter A</div>
                 {#if cart[item.code]}
                   <div class="stepper">
                     <button onclick={() => dec(item.code)} aria-label={`Remove one ${item.item_name}`}>−</button>
@@ -161,17 +233,12 @@
 
       {#if groupB.length && section !== 'a'}
         <section class="group">
-          <div class="group-head">
-            <h2>Counter B</h2>
-            <span>Short orders · kitchen to counter</span>
-          </div>
+          <h2>Counter 2</h2>
           {#each groupB as item (item.id)}
             <article class="card">
               <div class="card-body">
                 <h3>{item.item_name}</h3>
                 <div class="price">{money(item.price_paise)}</div>
-                <div class="meta"><code>{item.code}</code> · made to order</div>
-                <div class="tagline">Kitchen preps it, collect at Counter B</div>
                 {#if cart[item.code]}
                   <div class="stepper">
                     <button onclick={() => dec(item.code)} aria-label={`Remove one ${item.item_name}`}>−</button>
@@ -192,29 +259,23 @@
 
   {#if cartCount > 0}
     <div class="cartbar">
-      <div class="cartbar-info">
-        <strong>{cartCount} item{cartCount > 1 ? 's' : ''} · {money(cartTotal)}</strong>
-        <span>Wallet ₹{wallet !== null ? (wallet / 100).toFixed(2) : '—'}</span>
-      </div>
-      <button class="primary" onclick={() => cartOpen = true}>View Cart <span aria-hidden="true">→</span></button>
+      <strong>{cartCount} item{cartCount > 1 ? 's' : ''} · {money(cartTotal)}</strong>
+      <button class="primary" onclick={() => { cartOpen = true; askNotifyPermission(); }}>View Cart →</button>
     </div>
   {/if}
 </div>
 
 {#if cartOpen}
   <div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) cartOpen = false; }}>
-    <div class="sheet" role="dialog" aria-modal="true" aria-label="Your cart">
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Cart">
       <div class="sheet-head">
-        <h2>Your order</h2>
+        <h2>Cart</h2>
         <button class="ghost" onclick={() => cartOpen = false}>Close</button>
       </div>
 
       {#each lines as { item, code, qty }}
         <div class="line">
-          <div>
-            <strong>{item.item_name}</strong>
-            <div class="line-sub">{money(item.price_paise)} each · {code}</div>
-          </div>
+          <strong>{item.item_name}</strong>
           <div class="line-right">
             <div class="stepper small">
               <button onclick={() => dec(code)} aria-label={`Remove one ${item.item_name}`}>−</button>
@@ -226,15 +287,8 @@
         </div>
       {/each}
 
-      <div class="bill">
-        <div><span>Item total</span><strong>{money(cartTotal)}</strong></div>
-        <div class="bill-total"><span>To pay from wallet</span><strong>{money(cartTotal)}</strong></div>
-        <div class="wallet-line">Balance after order: {wallet !== null ? money(Math.max(0, wallet - cartTotal)) : '—'}</div>
-      </div>
+      <div class="bill-total"><span>Total</span><strong>{money(cartTotal)}</strong></div>
 
-      {#if cartHasSpecial}
-        <p class="hint">Includes kitchen items — they'll be ready at Counter B.</p>
-      {/if}
       {#if placeError}
         <p class="error">{placeError}</p>
       {/if}
@@ -243,7 +297,7 @@
         {placing ? 'Placing…' : `Place order · ${money(cartTotal)}`}
       </button>
       {#if wallet !== null && cartTotal > wallet}
-        <p class="error">Wallet balance is too low for this order.</p>
+        <p class="error">Balance too low.</p>
       {/if}
     </div>
   </div>
@@ -254,18 +308,9 @@
     <div class="sheet success" role="dialog" aria-modal="true" aria-label="Order placed">
       <div class="check">✓</div>
       <h2>Order placed</h2>
-      <p class="token">Token <strong>#{placed.id}</strong></p>
-      <p class="where">
-        {#if placed.mixed}
-          Counter A for the meal, Counter B for the rest.
-        {:else if placed.special}
-          Show this token at <strong>Counter B</strong>. The kitchen is packing it now.
-        {:else}
-          Show this token at <strong>Counter A</strong>.
-        {/if}
-      </p>
-      <p class="paid">{money(placed.total)} paid from your wallet.</p>
-      <button class="primary wide" onclick={() => placed = null}>Order something else</button>
+      <div class="token">#{placed.id}</div>
+      <p class="where">{placed.special ? 'Counter 2' : 'Counter 1'}</p>
+      <button class="primary wide" onclick={() => placed = null}>Done</button>
     </div>
   </div>
 {/if}
@@ -316,11 +361,24 @@
   }
   .ghost:hover { color: #1b1b1b; }
 
-  .content { max-width: 760px; margin: 0 auto; padding: 0 1.25rem; }
+  .track {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .5rem 1.25rem;
+    background: #fff8e6;
+    color: #8a6d3b;
+    border-bottom: 1px solid #f1e6c8;
+    font-size: .8rem;
+    font-weight: 600;
+  }
+  .track.ready { background: #e8f5ee; color: #1f6f45; border-color: #cfe9da; }
+  .track.done { background: #f2f2f2; color: #777; border-color: #e6e6e6; }
 
-  .hello { padding: 1.25rem 0 .75rem; }
-  .hello h1 { margin: 0 0 .25rem; font-size: 1.35rem; letter-spacing: -.02em; }
-  .hello p { margin: 0; color: #7a7a7a; font-size: .85rem; }
+  .content { max-width: 760px; margin: 0 auto; padding: 0 1.25rem; }
 
   .searchbox {
     display: flex;
@@ -330,7 +388,7 @@
     border: 1px solid #e6e6e6;
     border-radius: 12px;
     padding: .65rem .8rem;
-    margin: .5rem 0 .75rem;
+    margin: 1rem 0 .75rem;
   }
   .searchbox input {
     border: none;
@@ -357,9 +415,7 @@
   .chip.active { background: #1b1b1b; border-color: #1b1b1b; color: #fff; }
 
   .group { margin-top: 1.4rem; }
-  .group-head { display: flex; align-items: baseline; gap: .6rem; margin-bottom: .6rem; }
-  .group-head h2 { font-size: 1.05rem; margin: 0; letter-spacing: -.01em; }
-  .group-head span { color: #9a9a9a; font-size: .72rem; }
+  .group h2 { font-size: 1.05rem; margin: 0 0 .6rem; letter-spacing: -.01em; }
 
   .card {
     display: flex;
@@ -373,27 +429,16 @@
   }
   .card-body { flex: 1; min-width: 0; }
   .card-body h3 { margin: 0 0 .25rem; font-size: 1rem; letter-spacing: -.01em; }
-  .price { font-weight: 800; font-size: .95rem; margin-bottom: .3rem; }
-  .meta { color: #8a8a8a; font-size: .72rem; }
-  .meta code { background: #f2f2f2; border-radius: 3px; padding: 0 .25rem; }
-  .tagline {
-    display: inline-block;
-    margin-top: .5rem;
-    font-size: .68rem;
-    color: #2e8b57;
-    background: #eef7f1;
-    border-radius: 6px;
-    padding: .15rem .4rem;
-  }
+  .price { font-weight: 800; font-size: .95rem; }
 
   .card-art {
-    width: 116px;
-    height: 116px;
+    width: 108px;
+    height: 108px;
     flex-shrink: 0;
     border-radius: 14px;
     display: grid;
     place-items: center;
-    font-size: 3rem;
+    font-size: 2.8rem;
     align-self: center;
   }
 
@@ -453,9 +498,8 @@
     background: #fff;
     border-top: 1px solid #e9e9e9;
     box-shadow: 0 -8px 30px rgba(0, 0, 0, .07);
+    font-size: .95rem;
   }
-  .cartbar-info { display: flex; flex-direction: column; font-size: .78rem; color: #777; }
-  .cartbar-info strong { font-size: .95rem; color: #1b1b1b; }
 
   .primary {
     background: #2e8b57;
@@ -505,14 +549,15 @@
     border-bottom: 1px solid #f0f0f0;
     font-size: .85rem;
   }
-  .line-sub { color: #9a9a9a; font-size: .7rem; margin-top: .1rem; }
   .line-right { display: flex; align-items: center; gap: .75rem; }
 
-  .bill { margin-top: 1rem; font-size: .85rem; }
-  .bill > div { display: flex; justify-content: space-between; padding: .2rem 0; color: #666; }
-  .bill-total { color: #1b1b1b !important; font-weight: 800; font-size: .95rem; border-top: 1px dashed #e5e5e5; margin-top: .35rem; padding-top: .55rem !important; }
-  .wallet-line { font-size: .72rem; color: #9a9a9a !important; justify-content: flex-end !important; }
-  .hint { font-size: .74rem; color: #8a6d3b; background: #fff8e6; border-radius: 8px; padding: .5rem .6rem; margin: .8rem 0 0; }
+  .bill-total {
+    display: flex;
+    justify-content: space-between;
+    margin-top: .75rem;
+    font-weight: 800;
+    font-size: .95rem;
+  }
 
   .success { text-align: center; padding: 2rem 1.5rem; }
   .check {
@@ -521,13 +566,10 @@
     display: grid; place-items: center;
     font-size: 1.8rem; margin: 0 auto .75rem;
   }
-  .token { font-size: 1.05rem; margin: .25rem 0; }
-  .token strong { font-size: 1.8rem; display: block; letter-spacing: -.02em; }
-  .where { color: #666; font-size: .88rem; line-height: 1.4; }
-  .paid { color: #9a9a9a; font-size: .75rem; }
+  .token { font-size: 1.9rem; font-weight: 800; letter-spacing: -.02em; }
+  .where { color: #2e8b57; font-size: 1rem; font-weight: 700; margin: .25rem 0 0; }
 
   @media (max-width: 480px) {
-    .card-art { width: 92px; height: 92px; font-size: 2.4rem; }
-    .hello h1 { font-size: 1.2rem; }
+    .card-art { width: 88px; height: 88px; font-size: 2.3rem; }
   }
 </style>

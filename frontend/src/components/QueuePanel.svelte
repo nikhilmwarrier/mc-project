@@ -6,9 +6,9 @@
   const push = (msg) => { log = [msg, ...log].slice(0, 20); };
 
   const LANES = [
-    { key: 'a',       label: 'Counter A — Meals',        emoji: '🍽' },
+    { key: 'a',       label: 'Counter 1 — Meals',        emoji: '🍽' },
     { key: 'kitchen', label: 'Kitchen',                   emoji: '👨‍🍳' },
-    { key: 'ready',   label: 'Counter B — Other items',   emoji: '🔔' },
+    { key: 'ready',   label: 'Counter 2',                 emoji: '🔔' },
   ];
 
   let queues = $state({
@@ -25,8 +25,8 @@
 
   let availableItems = $derived(menuItems.filter(m => m.is_available));
   let selectedItem = $derived(availableItems.find(m => m.code === selectedCode));
-  // Lane is derived by the backend from the code: only MEAL goes to Counter A.
-  let route = $derived(!selectedItem ? '—' : selectedCode === 'MEAL' ? 'Counter A' : 'Kitchen → Counter B');
+  // Lane is derived by the backend from the code: only MEAL goes to Counter 1.
+  let route = $derived(!selectedItem ? '—' : selectedCode === 'MEAL' ? 'Counter 1' : 'Counter 2');
 
   async function refresh() {
     const results = await Promise.allSettled(

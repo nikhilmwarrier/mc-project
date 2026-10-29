@@ -165,6 +165,25 @@ func (s *Service) Queue(ctx context.Context, lane Lane) (Queue, error) {
 	return s.queue(ctx, lane)
 }
 
+// IsReady reports whether a kitchen order has been packed and is waiting at
+// Counter B. Meals never enter the ready lane.
+func (s *Service) IsReady(ctx context.Context, orderID int64) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.reconcile(ctx); err != nil {
+		return false, err
+	}
+	var lane Lane
+	err := s.db.QueryRowContext(ctx, `SELECT lane FROM fulfillment WHERE order_id=?`, orderID).Scan(&lane)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return lane == Ready, nil
+}
+
 // Acknowledge rejects malformed, retained, wrong-lane and out-of-order events.
 // Duplicates are accepted only if the corresponding transition already happened.
 func (s *Service) Acknowledge(ctx context.Context, lane Lane, payload string) error {
