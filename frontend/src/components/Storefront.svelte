@@ -516,12 +516,19 @@
   }
   .chip.active { background: #1b1b1b; border-color: #1b1b1b; color: #fff; }
 
-  .group { margin-top: 22px; }
-  .group h2 { font-size: 1.02rem; margin: 0 0 2px; letter-spacing: -.01em; }
+  .group { margin-top: 28px; }
+  .group h2 {
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: #747474;
+    margin: 0 0 2px;
+  }
 
   .item-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 18px;
     padding: 14px 0 22px;
     border-bottom: 1px solid #f0f0f0;
@@ -537,7 +544,8 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    justify-content: center;
+    justify-content: flex-start;
+    padding-top: 8px;
     gap: 5px;
   }
   .item-body h3 {
