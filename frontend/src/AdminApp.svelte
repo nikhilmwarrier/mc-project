@@ -1,4 +1,6 @@
 <script>
+  import { ListOrdered, ClipboardList, UtensilsCrossed, Users, LogOut, UserRound } from 'lucide-svelte';
+  import { haptic } from './lib/haptics.js';
   import QueuePanel  from './components/QueuePanel.svelte';
   import MenuPanel   from './components/MenuPanel.svelte';
   import OrdersPanel from './components/OrdersPanel.svelte';
@@ -7,10 +9,10 @@
   let { me, onlogout } = $props();
 
   const TABS = [
-    { key: 'queue',  label: 'Queues' },
-    { key: 'orders', label: 'Orders' },
-    { key: 'menu',   label: 'Menu' },
-    { key: 'users',  label: 'Users' },
+    { key: 'queue',  label: 'Queues', icon: ListOrdered },
+    { key: 'orders', label: 'Orders', icon: ClipboardList },
+    { key: 'menu',   label: 'Menu',   icon: UtensilsCrossed },
+    { key: 'users',  label: 'Users',  icon: Users },
   ];
 
   let tab = $state('queue');
@@ -20,17 +22,28 @@
 
 <div class="admin">
   <header class="topbar">
-    <div class="brand">CAMPUS <span>KITCHEN</span><em>admin</em></div>
+    <div class="brand">CAMPUS <span>KITCHEN</span></div>
 
     <nav class="tabs">
       {#each TABS as t}
-        <button class="tab" class:active={tab === t.key} onclick={() => tab = t.key}>{t.label}</button>
+        {@const Icon = t.icon}
+        <button
+          class="tab"
+          class:active={tab === t.key}
+          onclick={() => { haptic(4); tab = t.key; }}
+        >
+          <Icon size={15} strokeWidth={2} aria-hidden="true" />
+          {t.label}
+        </button>
       {/each}
     </nav>
 
     <div class="who">
+      <UserRound size={14} strokeWidth={2} aria-hidden="true" />
       <span>{me.roll_no ?? me.name}</span>
-      <button class="ghost" onclick={onlogout}>Logout</button>
+      <button class="icon-btn" onclick={onlogout} aria-label="Log out" title="Log out">
+        <LogOut size={17} strokeWidth={2} />
+      </button>
     </div>
   </header>
 
@@ -64,48 +77,48 @@
     z-index: 10;
     display: flex;
     align-items: center;
-    gap: 1.25rem;
+    gap: 20px;
     flex-wrap: wrap;
-    padding: .85rem 1.5rem;
+    min-height: 64px;
+    padding: 8px 24px;
     background: rgba(255, 255, 255, .94);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(12px);
     border-bottom: 1px solid #ececec;
   }
 
-  .brand { font-size: 1.05rem; font-weight: 800; letter-spacing: -.02em; }
+  .brand { font-size: 1.02rem; font-weight: 800; letter-spacing: -.02em; }
   .brand span { color: #2e8b57; }
-  .brand em {
-    font-style: normal;
-    font-size: .6rem;
-    font-weight: 700;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: #999;
-    margin-left: .5rem;
-  }
 
-  .tabs { display: flex; gap: .25rem; flex: 1; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
   .tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
     border: none;
     background: transparent;
     color: #777;
     font-weight: 600;
-    font-size: .82rem;
-    padding: .4rem .7rem;
+    font-size: .8rem;
+    padding: 8px 12px;
     border-radius: 999px;
+    transition: background-color 160ms ease, color 160ms ease, transform 160ms var(--ease-out);
   }
   .tab:hover:not(.active) { background: #f2f2f2; color: #333; }
   .tab.active { background: #e8f5ee; color: #1f6f45; }
 
-  .who { display: flex; align-items: center; gap: .75rem; font-size: .78rem; color: #777; }
-  .ghost {
+  .who { display: flex; align-items: center; gap: 8px; font-size: .77rem; color: #777; }
+  .icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
     border: none;
+    border-radius: 10px;
     background: transparent;
-    color: #999;
-    font-size: .78rem;
-    padding: .3rem .4rem;
+    color: #888;
   }
-  .ghost:hover { color: #1b1b1b; background: transparent; }
+  .icon-btn:hover:not(:disabled) { background: #f1f1f1; color: #1b1b1b; }
 
   .main { max-width: 1120px; margin: 0 auto; }
 
@@ -125,13 +138,18 @@
     font-size: .72rem;
     line-height: 1.35;
     border-radius: 10px;
-    padding: .5rem .7rem;
+    padding: 8px 11px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
     word-break: break-word;
+    animation: toast-in 220ms var(--ease-out) both;
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   @media (max-width: 640px) {
-    .topbar { gap: .5rem; padding: .7rem 1rem; }
+    .topbar { gap: 8px; padding: 8px 16px; }
     .tabs { order: 3; flex-basis: 100%; }
   }
 </style>

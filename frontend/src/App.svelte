@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { UtensilsCrossed } from 'lucide-svelte';
   import { auth, getMe } from './api.js';
   import { navigate, pathNow } from './lib/router.js';
   import Login from './components/Login.svelte';
@@ -56,7 +57,9 @@
 </script>
 
 {#if booting}
-  <div class="splash">🍽</div>
+  <div class="splash" aria-label="Loading">
+    <UtensilsCrossed size={32} strokeWidth={1.8} />
+  </div>
 {:else if isAdminRoute}
   {#if me}
     <AdminApp {me} onlogout={logout} />
@@ -76,7 +79,12 @@
     min-height: 100vh;
     display: grid;
     place-items: center;
-    font-size: 3rem;
+    color: #2e8b57;
     background: #f7f7f7;
+    animation: breathe 1.4s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { opacity: .35; }
+    50% { opacity: 1; }
   }
 </style>

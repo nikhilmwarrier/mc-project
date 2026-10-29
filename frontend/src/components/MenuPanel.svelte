@@ -1,6 +1,8 @@
 <script>
   import { onMount } from 'svelte';
+  import { Pencil, Power, PowerOff, Trash2 } from 'lucide-svelte';
   import { getMenu, createMenuItem, updateMenuItem, deleteMenuItem, patchMenuItem } from '../api.js';
+  import { haptic } from '../lib/haptics.js';
 
   let { log = $bindable([]) } = $props();
   const push = (msg) => { log = [msg, ...log].slice(0, 20); };
@@ -13,11 +15,12 @@
   async function load() {
     loading = true;
     try { const m = await getMenu(true); items = m.items ?? []; }
-    catch (e) { push(`❌ load menu: ${e.message}`); }
+    catch (e) { push(`Menu failed: ${e.message}`); }
     finally { loading = false; }
   }
 
   async function save() {
+    haptic(8);
     const body = {
       item_name:    form.item_name,
       code:         form.code,
@@ -27,31 +30,33 @@
     try {
       if (editId) {
         await updateMenuItem(editId, body);
-        push(`✅ updated ${form.code}`);
+        push(`Updated ${form.code}`);
       } else {
         const r = await createMenuItem(body);
-        push(`✅ created ${form.code} → id ${r.id}`);
+        push(`Created ${form.code} → id ${r.id}`);
       }
       resetForm();
       await load();
-    } catch (e) { push(`❌ save: ${e.message}`); }
+    } catch (e) { push(`Save failed: ${e.message}`); }
   }
 
   async function toggleAvail(item) {
+    haptic(6);
     try {
       await patchMenuItem(item.id, { is_available: !item.is_available });
-      push(`✅ ${item.code} → ${!item.is_available ? 'available' : 'unavailable'}`);
+      push(`${item.code} → ${!item.is_available ? 'available' : 'unavailable'}`);
       await load();
-    } catch (e) { push(`❌ toggle: ${e.message}`); }
+    } catch (e) { push(`Toggle failed: ${e.message}`); }
   }
 
   async function del(item) {
+    haptic(10);
     if (!confirm(`Delete ${item.item_name}?`)) return;
     try {
       await deleteMenuItem(item.id);
-      push(`🗑 deleted ${item.code}`);
+      push(`Deleted ${item.code}`);
       await load();
-    } catch (e) { push(`❌ delete: ${e.message}`); }
+    } catch (e) { push(`Delete failed: ${e.message}`); }
   }
 
   function startEdit(item) {
@@ -117,9 +122,15 @@
             <td>₹{(item.price_paise / 100).toFixed(2)}</td>
             <td><span class="badge {item.is_available ? 'completed' : 'cancelled'}">{item.is_available ? 'yes' : 'no'}</span></td>
             <td class="row-actions">
-              <button onclick={() => startEdit(item)}>Edit</button>
-              <button onclick={() => toggleAvail(item)}>{item.is_available ? 'Disable' : 'Enable'}</button>
-              <button class="danger" onclick={() => del(item)}>Del</button>
+              <button class="icon-action" aria-label={`Edit ${item.item_name}`} onclick={() => startEdit(item)}>
+                <Pencil size={14} strokeWidth={2} />
+              </button>
+              <button class="icon-action" aria-label={`${item.is_available ? 'Disable' : 'Enable'} ${item.item_name}`} onclick={() => toggleAvail(item)}>
+                {#if item.is_available}<PowerOff size={14} strokeWidth={2} />{:else}<Power size={14} strokeWidth={2} />{/if}
+              </button>
+              <button class="danger icon-action" aria-label={`Delete ${item.item_name}`} onclick={() => del(item)}>
+                <Trash2 size={14} strokeWidth={2} />
+              </button>
             </td>
           </tr>
         {:else}
@@ -132,7 +143,7 @@
 </section>
 
 <style>
-  .panel { padding: 1.25rem 1.5rem; }
+  .panel { padding: 24px; }
 
   .form-box {
     background: #fff;
@@ -149,12 +160,18 @@
   .toggle { display: flex; gap: .3rem; align-items: center; cursor: pointer; font-size: .8rem; color: #555; }
   .btn-row { display: flex; gap: .3rem; }
 
-  .table-card { background: #fff; border: 1px solid #ececec; border-radius: 16px; overflow: hidden; }
+  .table-card { background: #fff; border: 1px solid #ececec; border-radius: 16px; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: .8rem; }
   th, td { padding: .55rem .75rem; text-align: left; border-bottom: 1px solid #f0f0f0; }
   th { color: #777; font-weight: 600; font-size: .72rem; }
   tbody tr:last-child td { border-bottom: none; }
   tr.inactive td { opacity: .45; }
-  .row-actions { display: flex; gap: .3rem; }
+  .row-actions { display: flex; gap: 4px; }
+  .icon-action { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border-radius: 8px; }
   code { background: #f4f4f4; padding: .1rem .3rem; border-radius: 5px; font-size: .75rem; }
+
+  @media (max-width: 600px) {
+    th:nth-child(1), td:nth-child(1),
+    th:nth-child(4), td:nth-child(4) { display: none; }
+  }
 </style>

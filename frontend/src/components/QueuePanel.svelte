@@ -1,14 +1,16 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
+  import { UtensilsCrossed, ChefHat, BellRing, Check } from 'lucide-svelte';
   import { getQueue, createOrder, ackQueue, getMenu, getUsers } from '../api.js';
+  import { haptic } from '../lib/haptics.js';
 
   let { me, log = $bindable([]) } = $props();
   const push = (msg) => { log = [msg, ...log].slice(0, 20); };
 
   const LANES = [
-    { key: 'a',       label: 'Counter 1 — Meals',        emoji: '🍽' },
-    { key: 'kitchen', label: 'Kitchen',                   emoji: '👨‍🍳' },
-    { key: 'ready',   label: 'Counter 2',                 emoji: '🔔' },
+    { key: 'a',       label: 'Counter 1 — Meals', icon: UtensilsCrossed },
+    { key: 'kitchen', label: 'Kitchen',           icon: ChefHat },
+    { key: 'ready',   label: 'Counter 2',         icon: BellRing },
   ];
 
   let queues = $state({
@@ -39,16 +41,17 @@
   }
 
   async function enqueue() {
-    if (!selectedItem) { push('⚠ pick a menu item'); return; }
+    if (!selectedItem) { push('Pick a menu item'); return; }
     const buyer = me?.role === 'admin' ? Number(userId) : Number(me?.id);
-    if (!buyer) { push('⚠ enter the customer user id'); return; }
+    if (!buyer) { push('Select a customer'); return; }
+    haptic(10);
     working = true;
     try {
       const res = await createOrder(buyer, [{ code: selectedCode, quantity: qty }]);
-      push(`✅ order #${res.id} for user ${buyer} → ${route} (₹${(res.total_paise / 100).toFixed(2)})`);
+      push(`Order #${res.id} for user ${buyer} → ${route} (₹${(res.total_paise / 100).toFixed(2)})`);
       await refresh();
     } catch (e) {
-      push(`❌ enqueue: ${e.message}`);
+      push(`Enqueue failed: ${e.message}`);
     } finally {
       working = false;
     }
@@ -56,14 +59,15 @@
 
   async function ack(lane) {
     const q = queues[lane];
-    if (!q.head) { push(`⚠ ${lane}: queue empty`); return; }
+    if (!q.head) { push('Queue empty'); return; }
+    haptic(8);
     working = true;
     try {
       await ackQueue(lane, q.head);
-      push(`🔔 ack #${q.head} on ${lane}`);
+      push(`Ack #${q.head} on ${lane}`);
       await refresh();
     } catch (e) {
-      push(`❌ ack: ${e.message}`);
+      push(`Ack failed: ${e.message}`);
     } finally {
       working = false;
     }
@@ -82,25 +86,27 @@
 <section class="panel">
   <h2>Live Queues</h2>
   <div class="lane-grid">
-    {#each LANES as { key, label, emoji }}
+    {#each LANES as { key, label, icon }}
+      {@const Icon = icon}
       {@const q = queues[key]}
       <div class="lane-card">
         <div class="lane-header">
-          <span class="lane-emoji">{emoji}</span>
+          <span class="lane-icon"><Icon size={16} strokeWidth={2} aria-hidden="true" /></span>
           <span class="lane-label">{label}</span>
-          <span class="badge {q.depth > 0 ? 'pending' : 'offline'}">Q{q.depth}</span>
+          <span class="badge {q.depth > 0 ? 'online' : 'idle'}">Q{q.depth}</span>
         </div>
-        <div class="lane-head">HEAD: <strong>{q.head ?? '—'}</strong></div>
+        <div class="lane-head">HEAD <strong>{q.head ?? '—'}</strong></div>
         <div class="lane-items">
           {#if q.items?.length}
             {#each q.items as id, i}
               <span class="token" class:head={i === 0}>#{id}</span>
             {/each}
-          {:else}
-            <span class="empty">empty</span>
           {/if}
         </div>
-        <button disabled={working || !q.head} onclick={() => ack(key)}>Ack ✓</button>
+        <button disabled={working || !q.head} onclick={() => ack(key)}>
+          <Check size={14} strokeWidth={2.5} aria-hidden="true" />
+          Ack
+        </button>
       </div>
     {/each}
   </div>
@@ -140,14 +146,14 @@
 </section>
 
 <style>
-  .panel { padding: 1.25rem 1.5rem; }
-  .panel > h2 { font-size: 1.05rem; margin-bottom: .75rem; }
+  .panel { padding: 24px; }
+  .panel > h2 { font-size: 1.02rem; margin-bottom: 12px; }
 
   .lane-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.25rem;
+    gap: 12px;
+    margin-bottom: 20px;
   }
   @media (max-width: 720px) { .lane-grid { grid-template-columns: 1fr; } }
 
@@ -155,18 +161,19 @@
     background: #fff;
     border: 1px solid #ececec;
     border-radius: 16px;
-    padding: 1rem;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: .45rem;
+    gap: 8px;
   }
 
-  .lane-header { display: flex; align-items: center; gap: .4rem; font-size: .88rem; font-weight: 700; }
-  .lane-emoji  { font-size: 1rem; }
+  .lane-header { display: flex; align-items: center; gap: 8px; font-size: .86rem; font-weight: 700; }
+  .lane-icon { color: #2e8b57; display: inline-flex; }
   .lane-label  { flex: 1; }
-  .lane-head   { font-size: .78rem; color: #777; }
+  .lane-head   { font-size: .76rem; color: #777; display: flex; gap: 6px; align-items: baseline; font-variant-numeric: tabular-nums; }
+  .lane-head strong { color: #1b1b1b; font-size: .9rem; }
 
-  .lane-items { display: flex; flex-wrap: wrap; gap: .3rem; min-height: 1.5rem; }
+  .lane-items { display: flex; flex-wrap: wrap; gap: 4px; min-height: 24px; }
   .token {
     font-size: .7rem;
     background: #f4f4f4;
@@ -178,19 +185,30 @@
   .token.head { border-color: #2e8b57; color: #1f6f45; background: #e8f5ee; font-weight: 700; }
   .empty { font-size: .75rem; color: #aaa; }
 
-  .lane-card button { margin-top: .35rem; }
+  .lane-card > button { margin-top: 4px; align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; height: 32px; }
 
   .enqueue-box {
     background: #fff;
     border: 1px solid #ececec;
     border-radius: 16px;
-    padding: 1rem;
+    padding: 16px;
   }
-  .enqueue-row { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
-  .field { flex: 1; min-width: 140px; }
-  .field.qty { max-width: 80px; }
-  .field.route { flex: 0 0 auto; min-width: 130px; }
-  .route-label { display: block; font-size: .72rem; color: #777; margin-bottom: .35rem; }
+  .enqueue-box h2 { margin-bottom: 12px; }
+  .enqueue-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 2fr) minmax(180px, 2fr) 80px 120px auto;
+    gap: 12px;
+    align-items: end;
+  }
+  .field { min-width: 0; }
+  .route-label { display: block; font-size: .72rem; color: #777; margin-bottom: 8px; }
   .field.route strong { font-size: .85rem; color: #1f6f45; }
-  .enqueue-btn { white-space: nowrap; height: 2.1rem; }
+  .enqueue-btn { white-space: nowrap; height: 38px; }
+
+  @media (max-width: 720px) {
+    .enqueue-row { grid-template-columns: 1fr 1fr; }
+    .enqueue-row > .field:nth-child(-n+2) { grid-column: 1 / -1; }
+    .field.qty { max-width: none; }
+    .enqueue-btn { grid-column: 1 / -1; width: 100%; }
+  }
 </style>

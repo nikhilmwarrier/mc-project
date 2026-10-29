@@ -1,13 +1,14 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
+  import {
+    Search, X, Wallet, LogOut, Download, ShoppingBag, Plus, Minus,
+    UtensilsCrossed, Check, ChevronRight, Clock3, BellRing, CheckCheck,
+  } from 'lucide-svelte';
   import { getMenu, getWallet, createOrder, getOrder } from '../api.js';
+  import { haptic } from '../lib/haptics.js';
 
   let { me, onlogout } = $props();
 
-  const EMOJI = {
-    MEAL: '🍛', POR: '🫓', CHK: '🍗', SNACK: '🍟',
-    PUR: '🥘', DIH: '🍚', IDP: '🍜', CHP: '🍲',
-  };
   const IMAGES = {
     MEAL: '/food/meal.jpg',
     POR: '/food/porotta.jpg',
@@ -34,17 +35,6 @@
   let pollTimer = null;
   let installEvent = $state(null);
 
-  function captureInstall(e) {
-    e.preventDefault();
-    installEvent = e;
-  }
-
-  async function install() {
-    if (!installEvent) return;
-    installEvent.prompt();
-    try { await installEvent.userChoice; } finally { installEvent = null; }
-  }
-
   const money = (paise) => paise % 100 === 0
     ? `₹${paise / 100}`
     : `₹${(paise / 100).toFixed(2)}`;
@@ -54,7 +44,6 @@
     for (const c of code) h = (h * 31 + c.charCodeAt(0)) >>> 0;
     return ART[h % ART.length];
   }
-  const emoji = (code) => EMOJI[code] ?? '🍽';
 
   let visible = $derived(items.filter(i => {
     if (section === 'a' && i.code !== 'MEAL') return false;
@@ -73,9 +62,11 @@
   let cartHasSpecial = $derived(lines.some(l => l.code !== 'MEAL'));
 
   function add(code) {
+    haptic(6);
     cart = { ...cart, [code]: (cart[code] ?? 0) + 1 };
   }
   function dec(code) {
+    haptic(4);
     const next = { ...cart };
     if ((next[code] ?? 0) <= 1) delete next[code];
     else next[code] -= 1;
@@ -137,6 +128,7 @@
 
   async function placeOrder() {
     if (!lines.length) return;
+    haptic(12);
     placing = true;
     placeError = '';
     try {
@@ -151,6 +143,18 @@
     } finally {
       placing = false;
     }
+  }
+
+  function captureInstall(e) {
+    e.preventDefault();
+    installEvent = e;
+  }
+
+  async function install() {
+    if (!installEvent) return;
+    haptic(8);
+    installEvent.prompt();
+    try { await installEvent.userChoice; } finally { installEvent = null; }
   }
 
   onMount(async () => {
@@ -189,12 +193,16 @@
     <div class="brand">CAMPUS <span>KITCHEN</span></div>
     <div class="top-actions">
       {#if wallet !== null}
-        <span class="wallet">₹{(wallet / 100).toFixed(2)}</span>
+        <span class="wallet"><Wallet size={14} strokeWidth={2} aria-hidden="true" />₹{(wallet / 100).toFixed(2)}</span>
       {/if}
       {#if installEvent}
-        <button class="ghost" onclick={install}>Install</button>
+        <button class="icon-btn" onclick={install} aria-label="Install app" title="Install app">
+          <Download size={18} strokeWidth={2} />
+        </button>
       {/if}
-      <button class="ghost" onclick={onlogout}>Logout</button>
+      <button class="icon-btn" onclick={onlogout} aria-label="Log out" title="Log out">
+        <LogOut size={18} strokeWidth={2} />
+      </button>
     </div>
   </header>
 
@@ -202,27 +210,29 @@
     <div class="track" class:ready={tracked.ready} class:done={tracked.status !== 'pending'}>
       <span class="track-text">
         {#if tracked.status === 'completed'}
-          #{tracked.id} collected
+          <CheckCheck size={15} strokeWidth={2} aria-hidden="true" /> #{tracked.id} collected
         {:else if tracked.ready}
-          #{tracked.id} ready · Counter 2
+          <BellRing size={15} strokeWidth={2} aria-hidden="true" /> #{tracked.id} ready · Counter 2
         {:else}
-          #{tracked.id} preparing
+          <Clock3 size={15} strokeWidth={2} aria-hidden="true" /> #{tracked.id} preparing
         {/if}
       </span>
-      <button class="ghost" onclick={forgetTracking}>✕</button>
+      <button class="icon-btn small" onclick={forgetTracking} aria-label="Dismiss order status">
+        <X size={15} strokeWidth={2} />
+      </button>
     </div>
   {/if}
 
   <main class="content">
     <div class="searchbox">
-      <span aria-hidden="true">🔍</span>
+      <Search size={17} strokeWidth={2} aria-hidden="true" />
       <input bind:value={search} placeholder="Search menu" aria-label="Search the menu" />
     </div>
 
     <div class="chips" role="group" aria-label="Filter by counter">
-      <button class="chip" class:active={section === 'all'} onclick={() => section = 'all'}>All</button>
-      <button class="chip" class:active={section === 'a'} onclick={() => section = 'a'}>Counter 1</button>
-      <button class="chip" class:active={section === 'b'} onclick={() => section = 'b'}>Counter 2</button>
+      <button class="chip" class:active={section === 'all'} onclick={() => { haptic(4); section = 'all'; }}>All</button>
+      <button class="chip" class:active={section === 'a'} onclick={() => { haptic(4); section = 'a'; }}>Counter 1</button>
+      <button class="chip" class:active={section === 'b'} onclick={() => { haptic(4); section = 'b'; }}>Counter 2</button>
     </div>
 
     {#if loading}
@@ -240,21 +250,27 @@
               <div class="card-body">
                 <h3>{item.item_name}</h3>
                 <div class="price">{money(item.price_paise)}</div>
-                {#if cart[item.code]}
-                  <div class="stepper">
-                    <button onclick={() => dec(item.code)} aria-label={`Remove one ${item.item_name}`}>−</button>
-                    <span>{cart[item.code]}</span>
-                    <button onclick={() => add(item.code)} aria-label={`Add one more ${item.item_name}`}>+</button>
-                  </div>
-                {:else}
-                  <button class="add" onclick={() => add(item.code)}>ADD <span>+</span></button>
-                {/if}
               </div>
               <div class="card-art">
                 {#if IMAGES[item.code]}
                   <img src={IMAGES[item.code]} alt={item.item_name} loading="lazy" />
                 {:else}
-                  <span class="card-emoji" style="background:{artwork(item.code)}">{emoji(item.code)}</span>
+                  <span class="card-fallback" style="background:{artwork(item.code)}">
+                    <UtensilsCrossed size={36} strokeWidth={1.5} aria-hidden="true" />
+                  </span>
+                {/if}
+                {#if cart[item.code]}
+                  <div class="stepper">
+                    <button onclick={() => dec(item.code)} aria-label={`Remove one ${item.item_name}`}>
+                      <Minus size={15} strokeWidth={2.25} />
+                    </button>
+                    <span>{cart[item.code]}</span>
+                    <button onclick={() => add(item.code)} aria-label={`Add one more ${item.item_name}`}>
+                      <Plus size={15} strokeWidth={2.25} />
+                    </button>
+                  </div>
+                {:else}
+                  <button class="add" onclick={() => add(item.code)}>ADD</button>
                 {/if}
               </div>
             </article>
@@ -270,21 +286,27 @@
               <div class="card-body">
                 <h3>{item.item_name}</h3>
                 <div class="price">{money(item.price_paise)}</div>
-                {#if cart[item.code]}
-                  <div class="stepper">
-                    <button onclick={() => dec(item.code)} aria-label={`Remove one ${item.item_name}`}>−</button>
-                    <span>{cart[item.code]}</span>
-                    <button onclick={() => add(item.code)} aria-label={`Add one more ${item.item_name}`}>+</button>
-                  </div>
-                {:else}
-                  <button class="add" onclick={() => add(item.code)}>ADD <span>+</span></button>
-                {/if}
               </div>
               <div class="card-art">
                 {#if IMAGES[item.code]}
                   <img src={IMAGES[item.code]} alt={item.item_name} loading="lazy" />
                 {:else}
-                  <span class="card-emoji" style="background:{artwork(item.code)}">{emoji(item.code)}</span>
+                  <span class="card-fallback" style="background:{artwork(item.code)}">
+                    <UtensilsCrossed size={36} strokeWidth={1.5} aria-hidden="true" />
+                  </span>
+                {/if}
+                {#if cart[item.code]}
+                  <div class="stepper">
+                    <button onclick={() => dec(item.code)} aria-label={`Remove one ${item.item_name}`}>
+                      <Minus size={15} strokeWidth={2.25} />
+                    </button>
+                    <span>{cart[item.code]}</span>
+                    <button onclick={() => add(item.code)} aria-label={`Add one more ${item.item_name}`}>
+                      <Plus size={15} strokeWidth={2.25} />
+                    </button>
+                  </div>
+                {:else}
+                  <button class="add" onclick={() => add(item.code)}>ADD</button>
                 {/if}
               </div>
             </article>
@@ -296,8 +318,14 @@
 
   {#if cartCount > 0}
     <div class="cartbar">
-      <strong>{cartCount} item{cartCount > 1 ? 's' : ''} · {money(cartTotal)}</strong>
-      <button class="primary" onclick={() => { cartOpen = true; askNotifyPermission(); }}>View Cart →</button>
+      <div class="cartbar-info">
+        <strong>{cartCount} item{cartCount > 1 ? 's' : ''} · {money(cartTotal)}</strong>
+      </div>
+      <button class="primary" onclick={() => { haptic(6); cartOpen = true; askNotifyPermission(); }}>
+        <ShoppingBag size={16} strokeWidth={2} aria-hidden="true" />
+        View Cart
+        <ChevronRight size={15} strokeWidth={2.25} aria-hidden="true" />
+      </button>
     </div>
   {/if}
 
@@ -309,7 +337,9 @@
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Cart">
       <div class="sheet-head">
         <h2>Cart</h2>
-        <button class="ghost" onclick={() => cartOpen = false}>Close</button>
+        <button class="icon-btn" onclick={() => cartOpen = false} aria-label="Close cart">
+          <X size={18} strokeWidth={2} />
+        </button>
       </div>
 
       {#each lines as { item, code, qty }}
@@ -317,9 +347,13 @@
           <strong>{item.item_name}</strong>
           <div class="line-right">
             <div class="stepper small">
-              <button onclick={() => dec(code)} aria-label={`Remove one ${item.item_name}`}>−</button>
+              <button onclick={() => dec(code)} aria-label={`Remove one ${item.item_name}`}>
+                <Minus size={14} strokeWidth={2.25} />
+              </button>
               <span>{qty}</span>
-              <button onclick={() => add(code)} aria-label={`Add one more ${item.item_name}`}>+</button>
+              <button onclick={() => add(code)} aria-label={`Add one more ${item.item_name}`}>
+                <Plus size={14} strokeWidth={2.25} />
+              </button>
             </div>
             <strong>{money(item.price_paise * qty)}</strong>
           </div>
@@ -345,7 +379,7 @@
 {#if placed}
   <div class="overlay">
     <div class="sheet success" role="dialog" aria-modal="true" aria-label="Order placed">
-      <div class="check">✓</div>
+      <div class="check"><Check size={26} strokeWidth={2.5} /></div>
       <h2>Order placed</h2>
       <div class="token">#{placed.id}</div>
       <p class="where">{placed.special ? 'Counter 2' : 'Counter 1'}</p>
@@ -370,35 +404,45 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
+    gap: 16px;
+    min-height: 64px;
+    padding: 0 20px;
     background: rgba(255, 255, 255, .92);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(12px);
     border-bottom: 1px solid #ececec;
     max-width: 760px;
     margin: 0 auto;
   }
-  .brand { font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em; }
+  .brand { font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; }
   .brand span { color: #2e8b57; }
 
-  .top-actions { display: flex; align-items: center; gap: .6rem; }
+  .top-actions { display: flex; align-items: center; gap: 6px; }
   .wallet {
-    font-size: .8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .78rem;
     font-weight: 700;
     color: #1f6f45;
     background: #e8f5ee;
     border-radius: 999px;
-    padding: .3rem .65rem;
+    padding: 6px 10px;
+    font-variant-numeric: tabular-nums;
   }
-  .ghost {
-    background: none;
+
+  .icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
     border: none;
+    border-radius: 10px;
+    background: transparent;
     color: #777;
-    font-size: .8rem;
-    cursor: pointer;
-    font-family: inherit;
   }
-  .ghost:hover { color: #1b1b1b; }
+  .icon-btn:hover:not(:disabled) { background: #f1f1f1; color: #1b1b1b; }
+  .icon-btn.small { width: 26px; height: 26px; border-radius: 8px; }
 
   .track {
     max-width: 760px;
@@ -406,128 +450,189 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: .5rem;
-    padding: .5rem 1.25rem;
+    gap: 8px;
+    padding: 8px 20px;
     background: #fff8e6;
     color: #8a6d3b;
     border-bottom: 1px solid #f1e6c8;
-    font-size: .8rem;
+    font-size: .78rem;
     font-weight: 600;
+    transition: background-color 240ms ease, color 240ms ease, border-color 240ms ease;
+    animation: slide-down 240ms var(--ease-out) both;
   }
+  .track-text { display: inline-flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
   .track.ready { background: #e8f5ee; color: #1f6f45; border-color: #cfe9da; }
   .track.done { background: #f2f2f2; color: #777; border-color: #e6e6e6; }
 
-  .content { max-width: 760px; margin: 0 auto; padding: 0 1.25rem; }
+  @keyframes slide-down {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .content { max-width: 760px; margin: 0 auto; padding: 0 20px; }
 
   .searchbox {
     display: flex;
     align-items: center;
-    gap: .5rem;
+    gap: 9px;
+    height: 44px;
     background: #fff;
     border: 1px solid #e6e6e6;
     border-radius: 12px;
-    padding: .65rem .8rem;
-    margin: 1rem 0 .75rem;
+    padding: 0 12px;
+    margin: 16px 0 12px;
+    color: #999;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
   }
+  .searchbox:focus-within { border-color: #2e8b57; box-shadow: 0 0 0 3px rgba(46, 139, 87, .1); }
   .searchbox input {
     border: none;
     outline: none;
     flex: 1;
-    font-size: .9rem;
+    height: 100%;
+    font-size: .88rem;
     font-family: inherit;
     background: transparent;
+    color: #1b1b1b;
   }
 
-  .chips { display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .5rem; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
   .chip {
     white-space: nowrap;
-    border: 1px solid #e0e0e0;
+    border: 1px solid #e4e4e4;
     background: #fff;
-    color: #555;
+    color: #666;
     border-radius: 999px;
-    padding: .4rem .8rem;
-    font-size: .78rem;
+    padding: 7px 14px;
+    font-size: .77rem;
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms var(--ease-out);
   }
   .chip.active { background: #1b1b1b; border-color: #1b1b1b; color: #fff; }
 
-  .group { margin-top: 1.4rem; }
-  .group h2 { font-size: 1.05rem; margin: 0 0 .6rem; letter-spacing: -.01em; }
+  .group { margin-top: 24px; }
+  .group h2 { font-size: 1.02rem; margin: 0 0 10px; letter-spacing: -.01em; }
 
   .card {
     display: flex;
-    gap: .9rem;
+    align-items: center;
+    gap: 18px;
     background: #fff;
-    border: 1px solid #ececec;
-    border-radius: 16px;
-    padding: 1rem;
-    margin-bottom: .8rem;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, .03);
+    border-radius: 18px;
+    padding: 16px 16px 16px 20px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .04);
+    transition: box-shadow 200ms ease, transform 200ms var(--ease-out);
   }
-  .card-body { flex: 1; min-width: 0; }
-  .card-body h3 { margin: 0 0 .25rem; font-size: 1rem; letter-spacing: -.01em; }
-  .price { font-weight: 800; font-size: .95rem; }
+  @media (hover: hover) and (pointer: fine) {
+    .card:hover { box-shadow: 0 8px 26px rgba(0, 0, 0, .08); }
+  }
+
+  .card-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .card-body h3 { margin: 0; font-size: 1.03rem; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; }
+  .price { font-weight: 700; font-size: .94rem; font-variant-numeric: tabular-nums; }
 
   .card-art {
-    width: 108px;
-    height: 108px;
+    position: relative;
+    width: 146px;
+    height: 146px;
     flex-shrink: 0;
-    border-radius: 14px;
-    overflow: hidden;
-    align-self: center;
+    border-radius: 16px;
     background: #f4f4f4;
   }
-  .card-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .card-emoji {
+  .card-art img,
+  .card-fallback {
     width: 100%;
     height: 100%;
-    display: grid;
-    place-items: center;
-    font-size: 2.8rem;
+    border-radius: 16px;
+    object-fit: cover;
+    display: block;
   }
+  .card-fallback { display: grid; place-items: center; color: #6f6f6f; }
 
   .add {
-    margin-top: .7rem;
-    border: 1.5px solid #2e8b57;
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    width: calc(100% - 20px);
+    height: 36px;
+    border: 1px solid #e2e2e2;
     background: #fff;
     color: #2e8b57;
     border-radius: 10px;
-    padding: .4rem 1rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-weight: 800;
-    letter-spacing: .06em;
-    font-size: .75rem;
+    letter-spacing: .07em;
+    font-size: .78rem;
     font-family: inherit;
     cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .14);
   }
-  .add span { margin-left: .45rem; font-size: 1rem; vertical-align: -1px; }
-  .add:hover { background: #f0f9f3; }
+  .add:active:not(:disabled) { transform: translateX(-50%) scale(0.97); }
+  @media (hover: hover) and (pointer: fine) {
+    .add:hover { background: #fff; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
+  }
 
+  .card-art .stepper {
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    width: calc(100% - 20px);
+    height: 36px;
+    margin: 0;
+    justify-content: space-between;
+    border: 1px solid #e2e2e2;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .14);
+  }
+  .card-art .stepper:active { transform: translateX(-50%); }
   .stepper {
     display: inline-flex;
     align-items: center;
-    margin-top: .7rem;
+    height: 34px;
     border: 1.5px solid #2e8b57;
     border-radius: 10px;
     overflow: hidden;
   }
   .stepper button {
+    display: inline-grid;
+    place-items: center;
     border: none;
+    border-radius: 0;
     background: #fff;
     color: #2e8b57;
     width: 34px;
-    height: 32px;
-    font-size: 1.05rem;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: inherit;
+    height: 100%;
+    padding: 0;
+    flex-shrink: 0;
   }
-  .stepper button:hover { background: #f0f9f3; }
-  .stepper span { min-width: 30px; text-align: center; font-weight: 800; font-size: .85rem; }
-  .stepper.small button { width: 28px; height: 26px; font-size: .9rem; }
+  .stepper button:hover:not(:disabled) { background: #f0f9f3; }
+  .stepper span {
+    flex: 1;
+    text-align: center;
+    font-weight: 800;
+    font-size: .83rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .stepper.small { height: 30px; margin-top: 0; }
+  .stepper.small button { width: 30px; }
 
-  .state { text-align: center; color: #8a8a8a; padding: 2rem 0; font-size: .9rem; }
+  .state { text-align: center; color: #8a8a8a; padding: 32px 0; font-size: .88rem; }
   .state.error, .error { color: #c0392b; }
 
   .cartbar {
@@ -537,89 +642,120 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
+    gap: 14px;
     max-width: 760px;
     margin: 0 auto;
-    padding: .8rem 1.25rem calc(.8rem + env(safe-area-inset-bottom));
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
     background: #fff;
     border-top: 1px solid #e9e9e9;
-    box-shadow: 0 -8px 30px rgba(0, 0, 0, .07);
-    font-size: .95rem;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, .06);
+    transition: transform 260ms var(--ease-drawer), opacity 200ms ease;
+  }
+  .cartbar-info strong { font-size: .93rem; font-variant-numeric: tabular-nums; }
+
+  @starting-style {
+    .cartbar { transform: translateY(100%); opacity: 0; }
   }
 
   .primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     background: #2e8b57;
     color: #fff;
     border: none;
     border-radius: 12px;
-    padding: .7rem 1.1rem;
-    font-size: .9rem;
+    padding: 0 16px;
+    height: 44px;
+    font-size: .88rem;
     font-weight: 700;
     font-family: inherit;
     cursor: pointer;
+    font-variant-numeric: tabular-nums;
   }
   .primary:hover:not(:disabled) { background: #26764a; }
   .primary:disabled { opacity: .5; cursor: default; }
-  .wide { width: 100%; margin-top: 1rem; padding: .85rem; }
-
-  .credits { text-align: center; padding: 2rem 0 1rem; font-size: .68rem; }
-  .credits a { color: #aaa; text-decoration: none; }
-  .credits a:hover { color: #777; }
+  .wide { width: 100%; margin-top: 16px; }
 
   .overlay {
     position: fixed;
     inset: 0;
     z-index: 20;
-    background: rgba(0, 0, 0, .45);
+    background: rgba(0, 0, 0, .42);
+    backdrop-filter: blur(2px);
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    padding: 1rem;
+    padding: 16px;
+    transition: opacity 200ms ease;
+  }
+  @starting-style {
+    .overlay { opacity: 0; }
   }
   .sheet {
     width: 100%;
     max-width: 520px;
     background: #fff;
     color: #1b1b1b;
-    border-radius: 18px;
-    padding: 1.25rem;
+    border-radius: 20px;
+    padding: 20px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     max-height: 88vh;
     overflow-y: auto;
+    transition: transform 320ms var(--ease-drawer), opacity 200ms ease;
   }
-  .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; }
-  .sheet-head h2 { margin: 0; font-size: 1.05rem; }
+  @starting-style {
+    .sheet { transform: translateY(28px); opacity: 0; }
+  }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .sheet-head h2 { margin: 0; font-size: 1.02rem; }
 
   .line {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 1rem;
-    padding: .65rem 0;
-    border-bottom: 1px solid #f0f0f0;
-    font-size: .85rem;
+    gap: 14px;
+    padding: 11px 0;
+    border-bottom: 1px solid #f1f1f1;
+    font-size: .86rem;
   }
-  .line-right { display: flex; align-items: center; gap: .75rem; }
+  .line-right { display: flex; align-items: center; gap: 12px; font-variant-numeric: tabular-nums; }
 
   .bill-total {
     display: flex;
     justify-content: space-between;
-    margin-top: .75rem;
+    margin-top: 12px;
     font-weight: 800;
     font-size: .95rem;
+    font-variant-numeric: tabular-nums;
   }
 
-  .success { text-align: center; padding: 2rem 1.5rem; }
+  .success { text-align: center; padding: 28px 20px; }
   .check {
     width: 56px; height: 56px; border-radius: 50%;
     background: #e8f5ee; color: #2e8b57;
     display: grid; place-items: center;
-    font-size: 1.8rem; margin: 0 auto .75rem;
+    margin: 0 auto 10px;
+    animation: pop 260ms var(--ease-out) both;
   }
-  .token { font-size: 1.9rem; font-weight: 800; letter-spacing: -.02em; }
-  .where { color: #2e8b57; font-size: 1rem; font-weight: 700; margin: .25rem 0 0; }
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.88); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .token { font-size: 1.9rem; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .where { color: #2e8b57; font-size: .98rem; font-weight: 700; margin: 4px 0 0; }
+
+  .credits { text-align: center; padding: 28px 0 12px; font-size: .67rem; }
+  .credits a { color: #aaa; text-decoration: none; }
+  .credits a:hover { color: #777; }
 
   @media (max-width: 480px) {
-    .card-art { width: 88px; height: 88px; font-size: 2.3rem; }
+    .card { gap: 12px; padding: 12px 12px 12px 16px; border-radius: 16px; }
+    .card-art { width: 118px; height: 118px; border-radius: 14px; }
+    .card-art img, .card-fallback, .add, .card-art .stepper { border-radius: 12px; }
+    .card-body h3 { font-size: .98rem; }
+    .add, .card-art .stepper { height: 33px; bottom: 8px; width: calc(100% - 16px); font-size: .74rem; }
+    .content, .topbar, .track { padding-left: 16px; padding-right: 16px; }
   }
 </style>

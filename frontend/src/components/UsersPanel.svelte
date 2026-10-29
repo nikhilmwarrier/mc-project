@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { createUser, topUp, getWallet, getUsers } from '../api.js';
+  import { haptic } from '../lib/haptics.js';
 
   let { log = $bindable([]) } = $props();
   const push = (msg) => { log = [msg, ...log].slice(0, 20); };
@@ -14,43 +15,46 @@
 
   async function loadUsers() {
     try { users = (await getUsers()).users ?? []; }
-    catch (e) { push(`❌ users: ${e.message}`); }
+    catch (e) { push(`Users failed: ${e.message}`); }
   }
 
   // Create user
   let newUser = $state({ roll_no: '', name: '', phone: '', pin: '' });
   async function addUser() {
+    haptic(8);
     try {
       const body = { ...newUser };
       if (!body.pin) delete body.pin;
       const res = await createUser(body);
-      push(`✅ user created id=${res.id}`);
+      push(`User created id=${res.id}`);
       newUser = { roll_no: '', name: '', phone: '', pin: '' };
       await loadUsers();
-    } catch (e) { push(`❌ create user: ${e.message}`); }
+    } catch (e) { push(`Create failed: ${e.message}`); }
   }
 
   // Top-up
   let topupId = $state('');
   let topupAmt = $state('');
   async function doTopup() {
-    if (!topupId) { push('⚠ select a user'); return; }
+    if (!topupId) { push('Select a user'); return; }
+    haptic(10);
     try {
       const res = await topUp(topupId, parseInt(topupAmt, 10));
-      push(`💰 ${nameOf(topupId)} → ₹${(res.balance_paise / 100).toFixed(2)}`);
+      push(`${nameOf(topupId)} → ₹${(res.balance_paise / 100).toFixed(2)}`);
       topupAmt = '';
-    } catch (e) { push(`❌ topup: ${e.message}`); }
+    } catch (e) { push(`Top-up failed: ${e.message}`); }
   }
 
   // Wallet
   let walletId = $state('');
   let walletBalance = $state(null);
   async function checkWallet() {
-    if (!walletId) { push('⚠ select a user'); return; }
+    if (!walletId) { push('Select a user'); return; }
+    haptic(5);
     try {
       const res = await getWallet(walletId);
       walletBalance = res.balance_paise;
-    } catch (e) { push(`❌ wallet: ${e.message}`); }
+    } catch (e) { push(`Wallet failed: ${e.message}`); }
   }
 
   onMount(loadUsers);
@@ -102,17 +106,17 @@
 </section>
 
 <style>
-  .panel { padding: 1.25rem 1.5rem; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+  .panel { padding: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
   .box {
     background: #fff;
     border: 1px solid #ececec;
     border-radius: 16px;
-    padding: 1rem;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: .6rem;
+    gap: 10px;
   }
-  .field { margin-bottom: .15rem; }
+  .field { margin-bottom: 2px; }
   .balance { font-size: 1.5rem; color: #2e8b57; font-weight: 800; margin: .25rem 0 0; }
 </style>

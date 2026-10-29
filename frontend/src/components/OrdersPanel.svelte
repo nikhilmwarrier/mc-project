@@ -1,6 +1,8 @@
 <script>
   import { onMount } from 'svelte';
+  import { X } from 'lucide-svelte';
   import { listOrders, getOrder, cancelOrder, getUsers } from '../api.js';
+  import { haptic } from '../lib/haptics.js';
 
   let { log = $bindable([]) } = $props();
   const push = (msg) => { log = [msg, ...log].slice(0, 20); };
@@ -30,22 +32,23 @@
       if (userId) q.user_id = userId;
       const res = await listOrders(q);
       orders = res.orders ?? [];
-    } catch (e) { push(`❌ orders: ${e.message}`); }
+    } catch (e) { push(`Orders failed: ${e.message}`); }
     finally { loading = false; }
   }
 
   async function openDetail(id) {
     try { detail = await getOrder(id); }
-    catch (e) { push(`❌ get order: ${e.message}`); }
+    catch (e) { push(`Order failed: ${e.message}`); }
   }
 
   async function doCancel(id) {
+    haptic(10);
     try {
       const res = await cancelOrder(id);
-      push(`🚫 cancelled #${id} — balance ₹${(res.balance_paise / 100).toFixed(2)}`);
+      push(`Cancelled #${id} — balance ₹${(res.balance_paise / 100).toFixed(2)}`);
       detail = null;
       await load();
-    } catch (e) { push(`❌ cancel: ${e.message}`); }
+    } catch (e) { push(`Cancel failed: ${e.message}`); }
   }
 
   onMount(async () => {
@@ -99,7 +102,9 @@
                 <td class="ts">{o.created_at.slice(0,16).replace('T',' ')}</td>
                 <td>
                   {#if o.status === 'pending'}
-                    <button class="danger sm" onclick={(e) => { e.stopPropagation(); doCancel(o.id); }}>✕</button>
+                    <button class="danger sm" aria-label={`Cancel order ${o.id}`} onclick={(e) => { e.stopPropagation(); doCancel(o.id); }}>
+                      <X size={14} strokeWidth={2.5} />
+                    </button>
                   {/if}
                 </td>
               </tr>
@@ -140,7 +145,7 @@
 </section>
 
 <style>
-  .panel { padding: 1.25rem 1.5rem; }
+  .panel { padding: 24px; }
 
   .filter-row { display: flex; gap: .75rem; align-items: flex-end; margin-bottom: 1rem; flex-wrap: wrap; }
   .field { flex: 1; max-width: 190px; }
@@ -162,7 +167,7 @@
   tr:hover td { background: #fafafa; cursor: pointer; }
   tr.selected td { background: #eef7f1; }
   .ts { font-size: .7rem; color: #999; white-space: nowrap; }
-  .sm { padding: .15rem .4rem; font-size: .7rem; border-radius: 8px; }
+  .sm { display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; border-radius: 8px; }
 
   .detail {
     width: 320px;
