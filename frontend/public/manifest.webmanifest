@@ -1,6 +1,6 @@
 {
-  "name": "Campus Kitchen",
-  "short_name": "Campus Kitchen",
+  "name": "College Canteen",
+  "short_name": "College Canteen",
   "description": "Order canteen meals and track your token.",
   "start_url": "/",
   "scope": "/",

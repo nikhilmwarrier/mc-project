@@ -37,7 +37,7 @@
 
 <div class="login-wrap">
   <div class="login-box">
-    <div class="brand">CAMPUS <span>KITCHEN</span></div>
+    <div class="brand">College <span>Canteen</span></div>
     <p class="sub">{scope === 'admin' ? 'Staff sign in' : 'Sign in with your roll number and PIN'}</p>
 
     <form onsubmit={(e) => { e.preventDefault(); submit(); }}>
@@ -98,7 +98,7 @@
     padding: 32px;
     box-shadow: 0 18px 50px rgba(0, 0, 0, .07);
   }
-  .brand { font-family: var(--font-serif); text-align: center; font-size: 1.55rem; font-weight: 700; letter-spacing: -.01em; }
+  .brand { font-family: var(--font-logo); text-align: center; font-size: 2rem; font-weight: 400; letter-spacing: .01em; }
   .brand span { color: #2e8b57; }
   .sub { text-align: center; color: #7a7a7a; font-size: .84rem; margin: 7px 0 26px; }
   .field { margin-bottom: 14px; }

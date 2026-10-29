@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@fontsource/boogaloo':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource/ibm-plex-sans':
         specifier: ^5.3.0
         version: 5.3.0
@@ -29,6 +32,9 @@ importers:
         version: 8.3.5
 
 packages:
+
+  '@fontsource/boogaloo@5.3.0':
+    resolution: {integrity: sha512-nFnL1AvihH7+QOpOF0KsJdwsyzVJnJfFwy0XberXHpuc3bJ5tH66fkZOp8ZhJEeLJ22VFFktXq6xWmXnt4atzw==}
 
   '@fontsource/ibm-plex-sans@5.3.0':
     resolution: {integrity: sha512-CbE4CbbEEZJX860XyUiRpsksXIQR8Rp2XDva2VO53NJox9tVNtusrysd2x5YkUEY3ErQ66W1IiiQL8/wihhw5w==}
@@ -406,6 +412,8 @@ packages:
     resolution: {integrity: sha512-msJxIvYDYcoNL+PJsu+7qmpDWsYmAxTY+2TNYXXF0hzBzBk0BMecOqDOG/EckUoKCuKwObfbugIl8QpqHDXeFA==}
 
 snapshots:
+
+  '@fontsource/boogaloo@5.3.0': {}
 
   '@fontsource/ibm-plex-sans@5.3.0': {}
 

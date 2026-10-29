@@ -22,7 +22,7 @@
 
 <div class="admin">
   <header class="topbar">
-    <div class="brand">CAMPUS <span>KITCHEN</span></div>
+    <div class="brand">College <span>Canteen</span></div>
 
     <nav class="tabs">
       {#each TABS as t}
@@ -86,7 +86,7 @@
     border-bottom: 1px solid #ececec;
   }
 
-  .brand { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; }
+  .brand { font-family: var(--font-logo); font-size: 1.35rem; font-weight: 400; letter-spacing: .01em; }
   .brand span { color: #2e8b57; }
 
   .tabs { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }

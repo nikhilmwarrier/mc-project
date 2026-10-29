@@ -193,7 +193,7 @@
 
 <div class="storefront">
   <header class="topbar">
-    <div class="brand">CAMPUS <span>KITCHEN</span></div>
+    <div class="brand">College <span>Canteen</span></div>
     <div class="top-actions">
       {#if wallet !== null}
         <span class="wallet"><Wallet size={14} strokeWidth={2} aria-hidden="true" />₹{(wallet / 100).toFixed(2)}</span>
@@ -416,7 +416,7 @@
     max-width: 760px;
     margin: 0 auto;
   }
-  .brand { font-family: var(--font-serif); font-size: 1.2rem; font-weight: 700; letter-spacing: -.01em; }
+  .brand { font-family: var(--font-logo); font-size: 1.55rem; font-weight: 400; letter-spacing: .01em; }
   .brand span { color: #2e8b57; }
 
   .top-actions { display: flex; align-items: center; gap: 6px; }
