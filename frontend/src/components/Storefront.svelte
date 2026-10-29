@@ -64,8 +64,10 @@
   let cartCount = $derived(lines.reduce((n, l) => n + l.qty, 0));
   let cartTotal = $derived(lines.reduce((n, l) => n + l.item.price_paise * l.qty, 0));
   let cartHasSpecial = $derived(lines.some(l => l.code !== 'MEAL'));
-  let readyOrders = $derived(tracked.filter(o => o.status === 'pending' && o.ready));
-  let preparingOrders = $derived(tracked.filter(o => o.status === 'pending' && !o.ready));
+  // Counter 1 meals are collectable immediately; Counter 2 only once ready.
+  const isShowable = (o) => o.status === 'pending' && (o.ready || o.counter === 1);
+  let showTokens = $derived(tracked.filter(isShowable));
+  let preparingOrders = $derived(tracked.filter(o => o.status === 'pending' && !o.ready && o.counter !== 1));
 
   function add(code) {
     haptic(6);
@@ -92,8 +94,11 @@
   }
 
   function persistTracked() {
-    try { sessionStorage.setItem('canteen_track', JSON.stringify(tracked.map(o => o.id))); }
-    catch { /* private mode */ }
+    try {
+      sessionStorage.setItem('canteen_track', JSON.stringify(
+        tracked.map(o => ({ id: o.id, counter: o.counter }))
+      ));
+    } catch { /* private mode */ }
   }
 
   function notifyReady(id) {
@@ -114,7 +119,7 @@
       if (o.status !== 'pending') return o;
       try {
         const d = await getOrder(o.id);
-        return { id: o.id, ready: !!d.ready, status: d.status };
+        return { id: o.id, ready: !!d.ready, status: d.status, counter: o.counter };
       } catch {
         return o;
       }
@@ -131,13 +136,13 @@
       cartOpen = false;
       tokenOpen = true;
     }
-    if (!tracked.some(o => o.ready)) tokenOpen = false;
+    if (!tracked.some(isShowable)) tokenOpen = false;
     if (!tracked.length) stopPolling();
   }
 
-  function startTracking(id) {
+  function startTracking(id, counter) {
     if (!tracked.some(o => o.id === id)) {
-      tracked = [...tracked, { id, ready: false, status: 'pending' }];
+      tracked = [...tracked, { id, ready: false, status: 'pending', counter }];
     }
     persistTracked();
     ensurePolling();
@@ -161,7 +166,7 @@
       cart = {};
       cartOpen = false;
       await refreshWallet();
-      startTracking(res.id);
+      startTracking(res.id, cartHasSpecial ? 2 : 1);
     } catch (e) {
       placeError = e.message;
     } finally {
@@ -201,12 +206,14 @@
     } catch { /* private mode */ }
 
     if (saved.length) {
-      const results = await Promise.all(saved.map(async (id) => {
+      const results = await Promise.all(saved.map(async (entry) => {
+        const id = typeof entry === 'object' ? entry.id : entry;
+        const counter = typeof entry === 'object' ? (entry.counter ?? 2) : 2;
         try {
           const o = await getOrder(id);
-          return { id, ready: !!o.ready, status: o.status };
+          return { id, ready: !!o.ready, status: o.status, counter };
         } catch {
-          return { id, ready: false, status: 'completed' };
+          return { id, ready: false, status: 'completed', counter };
         }
       }));
       tracked = results.filter(o => o.status === 'pending');
@@ -360,10 +367,10 @@
   <footer class="credits"><a href="/food/CREDITS.md">Photo credits</a></footer>
 </div>
 
-{#if readyOrders.length && !tokenOpen}
+{#if showTokens.length && !tokenOpen}
   <button class="fab" class:raised={cartCount > 0} onclick={() => { haptic(8); tokenOpen = true; }}>
     <Ticket size={17} strokeWidth={2} aria-hidden="true" />
-    Show token ({readyOrders.length})
+    Show token ({showTokens.length})
   </button>
 {/if}
 
@@ -411,19 +418,19 @@
   </div>
 {/if}
 
-{#if tokenOpen && readyOrders.length}
+{#if tokenOpen && showTokens.length}
   <div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) tokenOpen = false; }}>
     <div class="sheet token-sheet" role="dialog" aria-modal="true" aria-label="Ready token">
       <div class="sheet-head">
-        <h2>Ready</h2>
+        <h2>Tokens</h2>
         <button class="icon-btn" onclick={() => tokenOpen = false} aria-label="Dismiss token">
           <X size={18} strokeWidth={2} />
         </button>
       </div>
-      {#each readyOrders as o}
+      {#each showTokens as o}
         <div class="ready-row">
           <div class="token-big">#{o.id}</div>
-          <div class="ready-hint">Counter 2</div>
+          <div class="ready-hint">{o.counter === 1 ? 'Counter 1' : 'Counter 2'}</div>
         </div>
       {/each}
       <button class="primary wide" onclick={() => tokenOpen = false}>Done</button>
