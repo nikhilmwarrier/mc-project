@@ -1,0 +1,283 @@
+openapi: 3.0.3
+info:
+  title: Canteen Backend API
+  version: 1.0.0
+servers:
+  - url: http://localhost:{port}
+    description: Local development server
+    variables:
+      port:
+        default: "8080"
+paths:
+  /auth/login:
+    post:
+      summary: Login and receive JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  type: string
+                password:
+                  type: string
+              required: [principal, password]
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  role:
+                    type: string
+        '401':
+          description: Invalid credentials
+  /auth/me:
+    get:
+      summary: Retrieve current user info
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  roll_no:
+                    type: string
+                  name:
+                    type: string
+                  phone:
+                    type: string
+                  role:
+                    type: string
+  /users:
+    post:
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roll_no:
+                  type: string
+                name:
+                  type: string
+                phone:
+                  type: string
+                pin:
+                  type: string
+              required: [roll_no, name, phone]
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+  /users/{id}/topup:
+    post:
+      summary: Top‑up user balance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount_paise:
+                  type: integer
+              required: [amount_paise]
+      responses:
+        '200':
+          description: Updated balance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balance_paise:
+                    type: integer
+  /wallet:
+    get:
+      summary: Get wallet balance (admin only or self)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Balance info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balance_paise:
+                    type: integer
+  /menu:
+    get:
+      summary: List menu items (admin can view all)
+      parameters:
+        - name: all
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Menu list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+  /menu/{id}:
+    put:
+      summary: Update menu item (admin)
+    delete:
+      summary: Delete menu item (admin, 204 on success, 409 if ordered)
+  /menu/{id}/availability:
+    patch:
+      summary: Set menu item availability (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_available:
+                  type: boolean
+              required: [is_available]
+      responses:
+        '204':
+          description: Updated
+  /orders:
+    post:
+      summary: Create an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lines:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      quantity:
+                        type: integer
+              required: [lines]
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  total_paise:
+                    type: integer
+    get:
+      summary: List orders (self or admin filter)
+      parameters:
+        - name: user_id
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Orders list
+  /orders/{id}:
+    get:
+      summary: Get order details (owner or admin)
+  /orders/{id}/cancel:
+    post:
+      summary: Cancel order and refund (owner or admin)
+      responses:
+        '200':
+          description: Balance after cancellation
+  /queue:
+    get:
+      summary: Get queue head for a lane (kitchen, a, ready)
+      parameters:
+        - name: lane
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [kitchen,a,ready]
+      responses:
+        '200':
+          description: Queue status
+  /queue/{lane}/ack:
+    post:
+      summary: Acknowledge the lane head, like a station button press (admin)
+      parameters:
+        - name: lane
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [kitchen,a,ready]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+              required: [id]
+      responses:
+        '204':
+          description: Acknowledged
+        '409':
+          description: Order is not the head of that lane
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

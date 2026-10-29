@@ -63,7 +63,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           server.NewRouter(cfg, db),
+		Handler:           server.NewRouter(cfg, db, queues),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

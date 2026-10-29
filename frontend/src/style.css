@@ -1,0 +1,60 @@
+/* ── Canteen test-rig styles ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Courier New', Courier, monospace;
+  background: #0d1117;
+  color: #e6edf3;
+}
+
+h1 { font-size: 1.1rem; letter-spacing: .15em; color: #58a6ff; margin: 0; }
+h2 { font-size: .75rem; letter-spacing: .12em; color: #8b949e; margin: 0 0 .5rem; text-transform: uppercase; }
+
+button {
+  font-family: inherit;
+  font-size: .8rem;
+  padding: .25rem .6rem;
+  border-radius: 4px;
+  border: 1px solid #30363d;
+  background: #21262d;
+  color: #c9d1d9;
+  cursor: pointer;
+  transition: background .15s;
+}
+button:hover:not(:disabled) { background: #30363d; }
+button:disabled { opacity: .4; cursor: default; }
+button.primary  { background: #238636; border-color: #2ea043; color: #fff; }
+button.primary:hover:not(:disabled) { background: #2ea043; }
+button.danger   { background: #b62324; border-color: #da3633; color: #fff; }
+button.danger:hover:not(:disabled)  { background: #da3633; }
+
+input, select {
+  font-family: inherit;
+  font-size: .8rem;
+  padding: .25rem .5rem;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #e6edf3;
+  width: 100%;
+}
+input:focus, select:focus { outline: none; border-color: #58a6ff; }
+
+label { font-size: .75rem; color: #8b949e; display: block; margin-bottom: .25rem; }
+
+.badge {
+  display: inline-block;
+  font-size: .65rem;
+  padding: .1rem .35rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.badge.online  { background: #1a4731; color: #3fb950; }
+.badge.offline { background: #3d1f1f; color: #f85149; }
+.badge.pending { background: #1a3050; color: #58a6ff; }
+.badge.ready   { background: #3d2f00; color: #e3b341; }
+.badge.completed  { background: #1a4731; color: #3fb950; }
+.badge.cancelled  { background: #3d1f1f; color: #f85149; }

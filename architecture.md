@@ -170,6 +170,7 @@ POST /users            {roll_no, name, phone}        -> {id}
 POST /users/:id/topup  {amount_paise}                -> {balance_paise}
 POST /orders           {user_id, lines: [{code, quantity}]} -> {id, total_paise}
 GET  /queue            ?lane=a|kitchen|ready         -> {head, depth, items: [ids]}
+POST /queue/:lane/ack  {id}                          -> 204 (admin; same as a button press)
 POST /orders/:id/cancel                              -> {balance_paise}
 ```
 

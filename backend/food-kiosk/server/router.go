@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"food-kiosk/backend"
 )
 
 // server holds the shared dependencies for every handler.
@@ -13,6 +15,7 @@ type server struct {
 	db           *sql.DB
 	auth         *Auth
 	loginLimiter *loginLimiter
+	queues       *backend.Service
 }
 
 // NewRouter builds the HTTP handler for the whole API.
@@ -20,12 +23,13 @@ type server struct {
 // AUTH_REQUIRED=false skips token enforcement entirely; handlers then fall back
 // to the user_id supplied in the request. That mode exists for curl demos and
 // must not be used where the network is untrusted.
-func NewRouter(cfg Config, db *sql.DB) http.Handler {
+func NewRouter(cfg Config, db *sql.DB, queues *backend.Service) http.Handler {
 	s := &server{
 		cfg:          cfg,
 		db:           db,
 		auth:         NewAuth(cfg.JWTSecret, cfg.JWTTTL),
 		loginLimiter: newLoginLimiter(cfg.LoginMaxAttempts, cfg.LoginWindow),
+		queues:       queues,
 	}
 
 	mux := http.NewServeMux()
@@ -50,6 +54,7 @@ func NewRouter(cfg Config, db *sql.DB) http.Handler {
 	mux.HandleFunc("GET /orders/{id}", s.protect(s.handleGetOrder))
 	mux.HandleFunc("POST /orders/{id}/cancel", s.protect(s.handleCancelOrder))
 	mux.HandleFunc("GET /queue", s.protect(s.handleQueue))
+	mux.HandleFunc("POST /queue/{lane}/ack", s.adminOnly(s.handleAckQueue))
 
 	return recoverMiddleware(logMiddleware(corsMiddleware(cfg.CORSOrigins, mux)))
 }

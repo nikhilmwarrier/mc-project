@@ -187,6 +187,11 @@ func (s *server) handleListOrders(w http.ResponseWriter, r *http.Request) {
 			writeDBError(w, err)
 			return
 		}
+	} else if ident, ok := identityFrom(r); ok && ident.IsAdmin() {
+		if orders, err = database.ListOrders(r.Context(), s.db); err != nil {
+			writeDBError(w, err)
+			return
+		}
 	} else {
 		writeError(w, http.StatusBadRequest, "user_id or status is required")
 		return

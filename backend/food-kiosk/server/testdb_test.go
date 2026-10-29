@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"food-kiosk/backend"
 	"food-kiosk/database"
 )
 
@@ -52,7 +53,11 @@ func newTestServerWithConfig(t *testing.T, cfg Config) (*httptest.Server, *sql.D
 	t.Helper()
 
 	db := openTestDB(t)
-	ts := httptest.NewServer(NewRouter(cfg, db))
+	queues, err := backend.New(context.Background(), db)
+	if err != nil {
+		t.Fatalf("queue service: %v", err)
+	}
+	ts := httptest.NewServer(NewRouter(cfg, db, queues))
 	t.Cleanup(ts.Close)
 	return ts, db
 }
@@ -66,7 +71,11 @@ func newTestServerNoAuth(t *testing.T) (*httptest.Server, *sql.DB) {
 	cfg.AuthRequired = false
 
 	db := openTestDB(t)
-	ts := httptest.NewServer(NewRouter(cfg, db))
+	queues, err := backend.New(context.Background(), db)
+	if err != nil {
+		t.Fatalf("queue service: %v", err)
+	}
+	ts := httptest.NewServer(NewRouter(cfg, db, queues))
 	t.Cleanup(ts.Close)
 	return ts, db
 }

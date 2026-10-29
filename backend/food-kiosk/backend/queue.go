@@ -121,7 +121,7 @@ func (s *Service) reconcile(ctx context.Context) error {
 func (s *Service) queue(ctx context.Context, lane Lane) (Queue, error) {
 	q := Queue{Lane: lane, Items: []Entry{}}
 	if lane != CounterA && lane != Kitchen && lane != Ready {
-		return q, fmt.Errorf("invalid lane %q", lane)
+		return q, fmt.Errorf("%w: unknown lane %q", database.ErrInvalidInput, lane)
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT f.order_id,f.code FROM fulfillment f JOIN orders o ON o.id=f.order_id WHERE o.status='pending' AND f.lane=? ORDER BY COALESCE(f.ready_sequence,f.order_id),f.order_id`, lane)
 	if err != nil {
@@ -152,6 +152,17 @@ func (s *Service) Snapshot(ctx context.Context) ([]Queue, error) {
 		result = append(result, q)
 	}
 	return result, nil
+}
+
+// Queue returns one lane's current contents. It reconciles first so orders
+// committed before a restart show up, same as Snapshot.
+func (s *Service) Queue(ctx context.Context, lane Lane) (Queue, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.reconcile(ctx); err != nil {
+		return Queue{Lane: lane, Items: []Entry{}}, err
+	}
+	return s.queue(ctx, lane)
 }
 
 // Acknowledge rejects malformed, retained, wrong-lane and out-of-order events.

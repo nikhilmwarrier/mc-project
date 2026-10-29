@@ -411,6 +411,12 @@ func ListOrdersByUser(ctx context.Context, db DB, userID int64) ([]Order, error)
 	return queryOrders(ctx, db, `SELECT `+orderColumns+` FROM orders WHERE user_id = ? ORDER BY id DESC`, userID)
 }
 
+// ListOrders returns every order, newest first, for the admin view. Items are
+// not attached; use GetOrderByID for detail.
+func ListOrders(ctx context.Context, db DB) ([]Order, error) {
+	return queryOrders(ctx, db, `SELECT `+orderColumns+` FROM orders ORDER BY id DESC`)
+}
+
 // ListOrdersByStatus returns orders in a given state, oldest first, which is the
 // order the kiosk should serve next.
 func ListOrdersByStatus(ctx context.Context, db DB, status OrderStatus) ([]Order, error) {

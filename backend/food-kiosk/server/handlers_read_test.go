@@ -120,9 +120,11 @@ func TestListOrdersAsAdmin(t *testing.T) {
 		t.Fatalf("admin by status = %+v (status %d)", byStatus, status)
 	}
 
-	// With neither selector the admin has no implicit "all", so it is a 400.
-	if _, status := getOrders(t, ts, admin, ""); status != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400", status)
+	// With neither selector an admin sees every order; a customer would be
+	// rejected earlier because their own history is the implicit filter.
+	all, status := getOrders(t, ts, admin, "")
+	if status != http.StatusOK || len(all.Orders) != 1 {
+		t.Fatalf("admin all = %+v (status %d), want 1 order", all, status)
 	}
 }
 

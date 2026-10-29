@@ -137,8 +137,13 @@ func TestQueueReadyLane(t *testing.T) {
 
 	order := placeOrder(t, ts, token, userID, []map[string]any{{"code": "POR", "quantity": 1}})
 
-	if err := SetOrderReady(context.Background(), db, order.ID); err != nil {
-		t.Fatalf("set order ready: %v", err)
+	// Kitchen ack is the only thing that moves a tray to the ready lane; there
+	// is no second write path that could drift.
+	admin := seedAdmin(t, ts, db, "admin", "adminpass")
+	resp, data := doJSON(t, http.MethodPost, ts.URL+"/queue/kitchen/ack",
+		map[string]any{"id": order.ID}, admin)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("kitchen ack: status %d body %s", resp.StatusCode, data)
 	}
 
 	q, status := getQueue(t, ts, token, "ready")
