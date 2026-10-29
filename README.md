@@ -31,6 +31,7 @@ kiosk/curl ──HTTP──▶ backend ──MQTT──▶ Node 1 kitchen ──
 2. **Fake backend:** `cd mqtt/tui && go run . -broker 127.0.0.1` — owns the queues, advances on button acks. Keys: `1/2/3` enqueue, `a/k/b` simulate a button, `q` quit.
 3. **Flash nodes:** `just a`, `just b`, `just kitchen` — stamps the role and this laptop's current LAN IP as `MQTT_HOST`, then uploads (default port `/dev/cu.usbmodem101`, override with `PORT=...`).
 4. **Real backend:** `cd backend/food-kiosk && AUTH_REQUIRED=false go run .` — full HTTP API on `:8080` plus the MQTT service. `POST /users`, top up, add a `MEAL` menu item, `POST /orders`, watch the LCDs.
+5. **UI:** `cd frontend && pnpm install && pnpm dev` — `/` is the customer storefront (menu, cart, wallet, token), `/admin` is the staff dashboard (queues, orders, menu, users). Both need a login; admins are bootstrapped from `ADMIN_PRINCIPAL`/`ADMIN_PASSWORD`, customers sign in with their roll number and PIN. A static host must fall back to `index.html` for `/admin`.
 
 ## Hardware (per node, ~₹2,000 total for three)
 

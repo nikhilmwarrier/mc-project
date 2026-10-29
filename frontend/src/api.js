@@ -6,6 +6,12 @@
 let _token = null;
 let _role = null;
 
+// Survive a reload or direct navigation to /admin.
+try {
+  _token = sessionStorage.getItem('canteen_token');
+  _role = sessionStorage.getItem('canteen_role');
+} catch { /* private mode */ }
+
 export const auth = {
   get token() { return _token; },
   get role()  { return _role; },
@@ -19,10 +25,21 @@ export const auth = {
     });
     _token = res.token;
     _role  = res.role;
+    try {
+      sessionStorage.setItem('canteen_token', _token);
+      sessionStorage.setItem('canteen_role', _role);
+    } catch { /* private mode */ }
     return res;
   },
 
-  logout() { _token = null; _role = null; },
+  logout() {
+    _token = null;
+    _role = null;
+    try {
+      sessionStorage.removeItem('canteen_token');
+      sessionStorage.removeItem('canteen_role');
+    } catch { /* private mode */ }
+  },
 };
 
 /**
