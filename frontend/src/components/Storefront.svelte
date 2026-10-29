@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import {
     Search, X, Wallet, LogOut, Download, ShoppingBag, Plus, Minus,
-    UtensilsCrossed, Check, ChevronRight, Clock3, BellRing, CheckCheck,
+    UtensilsCrossed, Check, ChevronRight, Clock3, Ticket,
   } from 'lucide-svelte';
   import { getMenu, getWallet, createOrder, getOrder } from '../api.js';
   import { haptic } from '../lib/haptics.js';
@@ -31,7 +31,8 @@
   let placeError = $state('');
   let placed = $state(null);
 
-  let tracked = $state(null);
+  let tracked = $state([]);
+  let tokenOpen = $state(false);
   let pollTimer = null;
   let installEvent = $state(null);
 
@@ -63,6 +64,8 @@
   let cartCount = $derived(lines.reduce((n, l) => n + l.qty, 0));
   let cartTotal = $derived(lines.reduce((n, l) => n + l.item.price_paise * l.qty, 0));
   let cartHasSpecial = $derived(lines.some(l => l.code !== 'MEAL'));
+  let readyOrders = $derived(tracked.filter(o => o.status === 'pending' && o.ready));
+  let preparingOrders = $derived(tracked.filter(o => o.status === 'pending' && !o.ready));
 
   function add(code) {
     haptic(6);
@@ -84,14 +87,13 @@
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   }
 
-  function forgetTracking() {
-    stopPolling();
-    tracked = null;
-    try { sessionStorage.removeItem('canteen_track'); } catch { /* private mode */ }
+  function ensurePolling() {
+    if (!pollTimer && tracked.length) pollTimer = setInterval(checkTracked, 4000);
   }
 
-  function rememberTracking(id) {
-    try { sessionStorage.setItem('canteen_track', String(id)); } catch { /* private mode */ }
+  function persistTracked() {
+    try { sessionStorage.setItem('canteen_track', JSON.stringify(tracked.map(o => o.id))); }
+    catch { /* private mode */ }
   }
 
   function notifyReady(id) {
@@ -105,21 +107,40 @@
   }
 
   async function checkTracked() {
-    if (!tracked || tracked.status !== 'pending') return;
-    try {
-      const o = await getOrder(tracked.id);
-      const becameReady = o.ready && !tracked.ready;
-      tracked = { id: o.id, ready: !!o.ready, status: o.status };
-      if (becameReady) notifyReady(o.id);
-      if (o.status !== 'pending') stopPolling();
-    } catch { /* transient; poll again */ }
+    if (!tracked.length) { stopPolling(); return; }
+
+    const before = new Map(tracked.map(o => [o.id, o.ready]));
+    const results = await Promise.all(tracked.map(async (o) => {
+      if (o.status !== 'pending') return o;
+      try {
+        const d = await getOrder(o.id);
+        return { id: o.id, ready: !!d.ready, status: d.status };
+      } catch {
+        return o;
+      }
+    }));
+
+    const becameReady = results.filter(o =>
+      o.status === 'pending' && o.ready && !before.get(o.id)
+    );
+    tracked = results.filter(o => o.status === 'pending');
+    persistTracked();
+
+    if (becameReady.length) {
+      becameReady.forEach(o => notifyReady(o.id));
+      cartOpen = false;
+      tokenOpen = true;
+    }
+    if (!tracked.some(o => o.ready)) tokenOpen = false;
+    if (!tracked.length) stopPolling();
   }
 
   function startTracking(id) {
-    stopPolling();
-    tracked = { id, ready: false, status: 'pending' };
-    rememberTracking(id);
-    pollTimer = setInterval(checkTracked, 4000);
+    if (!tracked.some(o => o.id === id)) {
+      tracked = [...tracked, { id, ready: false, status: 'pending' }];
+    }
+    persistTracked();
+    ensurePolling();
     checkTracked();
   }
 
@@ -172,16 +193,26 @@
     }
     await refreshWallet();
 
-    let saved = null;
-    try { saved = Number(sessionStorage.getItem('canteen_track')); } catch { /* private mode */ }
-    if (saved) {
-      try {
-        const o = await getOrder(saved);
-        if (o.status === 'pending') {
-          tracked = { id: o.id, ready: !!o.ready, status: o.status };
-          pollTimer = setInterval(checkTracked, 4000);
+    let saved = [];
+    try {
+      const raw = sessionStorage.getItem('canteen_track');
+      const parsed = raw ? JSON.parse(raw) : [];
+      saved = Array.isArray(parsed) ? parsed : [parsed];
+    } catch { /* private mode */ }
+
+    if (saved.length) {
+      const results = await Promise.all(saved.map(async (id) => {
+        try {
+          const o = await getOrder(id);
+          return { id, ready: !!o.ready, status: o.status };
+        } catch {
+          return { id, ready: false, status: 'completed' };
         }
-      } catch { /* order gone */ }
+      }));
+      tracked = results.filter(o => o.status === 'pending');
+      persistTracked();
+      if (tracked.some(o => o.ready)) tokenOpen = true;
+      if (tracked.length) pollTimer = setInterval(checkTracked, 4000);
     }
   });
 
@@ -209,20 +240,14 @@
     </div>
   </header>
 
-  {#if tracked}
-    <div class="track" class:ready={tracked.ready} class:done={tracked.status !== 'pending'}>
+  {#if preparingOrders.length}
+    <div class="track">
       <span class="track-text">
-        {#if tracked.status === 'completed'}
-          <CheckCheck size={15} strokeWidth={2} aria-hidden="true" /> #{tracked.id} collected
-        {:else if tracked.ready}
-          <BellRing size={15} strokeWidth={2} aria-hidden="true" /> #{tracked.id} ready · Counter 2
-        {:else}
-          <Clock3 size={15} strokeWidth={2} aria-hidden="true" /> #{tracked.id} preparing
-        {/if}
+        <Clock3 size={15} strokeWidth={2} aria-hidden="true" />
+        {preparingOrders.length === 1
+          ? `#${preparingOrders[0].id} preparing`
+          : `${preparingOrders.length} orders preparing`}
       </span>
-      <button class="icon-btn small" onclick={forgetTracking} aria-label="Dismiss order status">
-        <X size={15} strokeWidth={2} />
-      </button>
     </div>
   {/if}
 
@@ -335,6 +360,13 @@
   <footer class="credits"><a href="/food/CREDITS.md">Photo credits</a></footer>
 </div>
 
+{#if readyOrders.length && !tokenOpen}
+  <button class="fab" class:raised={cartCount > 0} onclick={() => { haptic(8); tokenOpen = true; }}>
+    <Ticket size={17} strokeWidth={2} aria-hidden="true" />
+    Show token ({readyOrders.length})
+  </button>
+{/if}
+
 {#if cartOpen}
   <div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) cartOpen = false; }}>
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Cart">
@@ -375,6 +407,26 @@
       {#if wallet !== null && cartTotal > wallet}
         <p class="error">Balance too low.</p>
       {/if}
+    </div>
+  </div>
+{/if}
+
+{#if tokenOpen && readyOrders.length}
+  <div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) tokenOpen = false; }}>
+    <div class="sheet token-sheet" role="dialog" aria-modal="true" aria-label="Ready token">
+      <div class="sheet-head">
+        <h2>Ready</h2>
+        <button class="icon-btn" onclick={() => tokenOpen = false} aria-label="Dismiss token">
+          <X size={18} strokeWidth={2} />
+        </button>
+      </div>
+      {#each readyOrders as o}
+        <div class="ready-row">
+          <div class="token-big">#{o.id}</div>
+          <div class="ready-hint">Counter 2</div>
+        </div>
+      {/each}
+      <button class="primary wide" onclick={() => tokenOpen = false}>Done</button>
     </div>
   </div>
 {/if}
@@ -445,7 +497,6 @@
     color: #777;
   }
   .icon-btn:hover:not(:disabled) { background: #f1f1f1; color: #1b1b1b; }
-  .icon-btn.small { width: 26px; height: 26px; border-radius: 8px; }
 
   .track {
     max-width: 760px;
@@ -464,8 +515,6 @@
     animation: slide-down 240ms var(--ease-out) both;
   }
   .track-text { display: inline-flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
-  .track.ready { background: #e8f5ee; color: #1f6f45; border-color: #cfe9da; }
-  .track.done { background: #f2f2f2; color: #777; border-color: #e6e6e6; }
 
   @keyframes slide-down {
     from { opacity: 0; transform: translateY(-6px); }
@@ -708,6 +757,45 @@
   .primary:hover:not(:disabled) { background: #26764a; }
   .primary:disabled { opacity: .5; cursor: default; }
   .wide { width: 100%; margin-top: 16px; }
+
+  .fab {
+    position: fixed;
+    right: 18px;
+    bottom: 20px;
+    z-index: 9;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 46px;
+    padding: 0 18px;
+    border: none;
+    border-radius: 999px;
+    background: #1f6f45;
+    color: #fff;
+    font: 700 .85rem/1 var(--font-sans);
+    box-shadow: 0 10px 26px rgba(31, 111, 69, .3);
+    transition: transform 160ms var(--ease-out), bottom 200ms var(--ease-out);
+  }
+  .fab:hover:not(:disabled) { background: #1a5f3b; }
+  .fab:active:not(:disabled) { transform: scale(.97); }
+  .fab.raised { bottom: calc(86px + env(safe-area-inset-bottom)); }
+  @starting-style {
+    .fab { opacity: 0; transform: translateY(8px); }
+  }
+
+  .token-sheet { text-align: center; }
+  .token-sheet .sheet-head { text-align: left; }
+  .ready-row { padding: 10px 0 16px; }
+  .ready-row + .ready-row { border-top: 1px solid #f1f1f1; padding-top: 20px; }
+  .token-big {
+    font-size: 3.2rem;
+    font-weight: 800;
+    letter-spacing: -.03em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    color: #111;
+  }
+  .ready-hint { color: #2e8b57; font-weight: 700; font-size: .9rem; margin-top: 4px; }
 
   .overlay {
     position: fixed;
