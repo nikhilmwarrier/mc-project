@@ -5,7 +5,7 @@
     UtensilsCrossed, Check, ChevronRight, Clock3, Ticket,
   } from 'lucide-svelte';
   import { getMenu, getWallet, createOrder, getOrder } from '../api.js';
-  import { haptic } from '../lib/haptics.js';
+  import { haptic, hapticPattern } from '../lib/haptics.js';
 
   let { me, onlogout } = $props();
 
@@ -133,6 +133,7 @@
 
     if (becameReady.length) {
       becameReady.forEach(o => notifyReady(o.id));
+      hapticPattern([140, 90, 140, 90, 140]); // beep-beep-beep, once per transition
       cartOpen = false;
       tokenOpen = true;
     }
