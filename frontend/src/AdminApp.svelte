@@ -86,7 +86,7 @@
     border-bottom: 1px solid #ececec;
   }
 
-  .brand { font-size: 1.02rem; font-weight: 800; letter-spacing: -.02em; }
+  .brand { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; }
   .brand span { color: #2e8b57; }
 
   .tabs { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }

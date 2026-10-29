@@ -38,6 +38,9 @@
   const money = (paise) => paise % 100 === 0
     ? `₹${paise / 100}`
     : `₹${(paise / 100).toFixed(2)}`;
+  const amount = (paise) => paise % 100 === 0
+    ? String(paise / 100)
+    : (paise / 100).toFixed(2);
 
   function artwork(code) {
     let h = 0;
@@ -246,12 +249,12 @@
         <section class="group">
           <h2>Counter 1</h2>
           {#each groupA as item (item.id)}
-            <article class="card">
-              <div class="card-body">
+            <article class="item-row">
+              <div class="item-body">
                 <h3>{item.item_name}</h3>
-                <div class="price">{money(item.price_paise)}</div>
+                <div class="price"><span class="currency">₹</span>{amount(item.price_paise)}</div>
               </div>
-              <div class="card-art">
+              <div class="item-media">
                 {#if IMAGES[item.code]}
                   <img src={IMAGES[item.code]} alt={item.item_name} loading="lazy" />
                 {:else}
@@ -282,12 +285,12 @@
         <section class="group">
           <h2>Counter 2</h2>
           {#each groupB as item (item.id)}
-            <article class="card">
-              <div class="card-body">
+            <article class="item-row">
+              <div class="item-body">
                 <h3>{item.item_name}</h3>
-                <div class="price">{money(item.price_paise)}</div>
+                <div class="price"><span class="currency">₹</span>{amount(item.price_paise)}</div>
               </div>
-              <div class="card-art">
+              <div class="item-media">
                 {#if IMAGES[item.code]}
                   <img src={IMAGES[item.code]} alt={item.item_name} loading="lazy" />
                 {:else}
@@ -391,9 +394,9 @@
 <style>
   .storefront {
     min-height: 100vh;
-    background: #f7f7f7;
+    background: #fff;
     color: #1b1b1b;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
     padding-bottom: 6rem;
   }
 
@@ -413,7 +416,7 @@
     max-width: 760px;
     margin: 0 auto;
   }
-  .brand { font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; }
+  .brand { font-family: var(--font-serif); font-size: 1.2rem; font-weight: 700; letter-spacing: -.01em; }
   .brand span { color: #2e8b57; }
 
   .top-actions { display: flex; align-items: center; gap: 6px; }
@@ -513,94 +516,107 @@
   }
   .chip.active { background: #1b1b1b; border-color: #1b1b1b; color: #fff; }
 
-  .group { margin-top: 24px; }
-  .group h2 { font-size: 1.02rem; margin: 0 0 10px; letter-spacing: -.01em; }
+  .group { margin-top: 22px; }
+  .group h2 { font-size: 1.02rem; margin: 0 0 2px; letter-spacing: -.01em; }
 
-  .card {
+  .item-row {
     display: flex;
     align-items: center;
     gap: 18px;
-    background: #fff;
-    border-radius: 18px;
-    padding: 16px 16px 16px 20px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, .04);
-    transition: box-shadow 200ms ease, transform 200ms var(--ease-out);
+    padding: 14px 0 22px;
+    border-bottom: 1px solid #f0f0f0;
   }
+  .item-row:last-child { border-bottom: none; }
   @media (hover: hover) and (pointer: fine) {
-    .card:hover { box-shadow: 0 8px 26px rgba(0, 0, 0, .08); }
+    .item-row:hover { background: #fcfcfc; }
   }
 
-  .card-body {
+  .item-body {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    justify-content: center;
+    gap: 5px;
   }
-  .card-body h3 { margin: 0; font-size: 1.03rem; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; }
-  .price { font-weight: 700; font-size: .94rem; font-variant-numeric: tabular-nums; }
+  .item-body h3 {
+    margin: 0;
+    font-size: 1.07rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.25;
+    color: #111;
+  }
+  .price {
+    font-size: .92rem;
+    font-weight: 600;
+    color: #5f5f5f;
+    letter-spacing: .005em;
+    font-variant-numeric: tabular-nums;
+  }
+  .currency { font-size: .78em; font-weight: 500; color: #8a8a8a; margin-right: 1px; }
 
-  .card-art {
+  .item-media {
     position: relative;
-    width: 146px;
-    height: 146px;
+    width: 132px;
+    height: 132px;
     flex-shrink: 0;
-    border-radius: 16px;
+    border-radius: 14px;
     background: #f4f4f4;
   }
-  .card-art img,
-  .card-fallback {
+  .item-media img,
+  .item-media .card-fallback {
     width: 100%;
     height: 100%;
-    border-radius: 16px;
+    border-radius: 14px;
     object-fit: cover;
     display: block;
   }
-  .card-fallback { display: grid; place-items: center; color: #6f6f6f; }
+  .item-media .card-fallback { display: grid; place-items: center; color: #6f6f6f; }
 
   .add {
     position: absolute;
     left: 50%;
-    bottom: 10px;
+    bottom: -16px;
     transform: translateX(-50%);
-    width: calc(100% - 20px);
-    height: 36px;
+    width: calc(100% - 16px);
+    height: 32px;
     border: 1px solid #e2e2e2;
     background: #fff;
     color: #2e8b57;
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-weight: 800;
     letter-spacing: .07em;
-    font-size: .78rem;
+    font-size: .72rem;
     font-family: inherit;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, .14);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, .14);
   }
   .add:active:not(:disabled) { transform: translateX(-50%) scale(0.97); }
   @media (hover: hover) and (pointer: fine) {
-    .add:hover { background: #fff; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
+    .add:hover { background: #fff; box-shadow: 0 5px 14px rgba(0, 0, 0, .18); }
   }
 
-  .card-art .stepper {
+  .item-media .stepper {
     position: absolute;
     left: 50%;
-    bottom: 10px;
+    bottom: -16px;
     transform: translateX(-50%);
-    width: calc(100% - 20px);
-    height: 36px;
+    width: calc(100% - 16px);
+    height: 32px;
     margin: 0;
     justify-content: space-between;
     border: 1px solid #e2e2e2;
     background: #fff;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, .14);
+    border-radius: 8px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, .14);
   }
-  .card-art .stepper:active { transform: translateX(-50%); }
+  .item-media .stepper:active { transform: translateX(-50%); }
   .stepper {
     display: inline-flex;
     align-items: center;
@@ -616,7 +632,7 @@
     border-radius: 0;
     background: #fff;
     color: #2e8b57;
-    width: 34px;
+    width: 30px;
     height: 100%;
     padding: 0;
     flex-shrink: 0;
@@ -626,7 +642,7 @@
     flex: 1;
     text-align: center;
     font-weight: 800;
-    font-size: .83rem;
+    font-size: .8rem;
     font-variant-numeric: tabular-nums;
   }
   .stepper.small { height: 30px; margin-top: 0; }
@@ -700,7 +716,7 @@
     color: #1b1b1b;
     border-radius: 20px;
     padding: 20px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
     max-height: 88vh;
     overflow-y: auto;
     transition: transform 320ms var(--ease-drawer), opacity 200ms ease;
@@ -751,11 +767,10 @@
   .credits a:hover { color: #777; }
 
   @media (max-width: 480px) {
-    .card { gap: 12px; padding: 12px 12px 12px 16px; border-radius: 16px; }
-    .card-art { width: 118px; height: 118px; border-radius: 14px; }
-    .card-art img, .card-fallback, .add, .card-art .stepper { border-radius: 12px; }
-    .card-body h3 { font-size: .98rem; }
-    .add, .card-art .stepper { height: 33px; bottom: 8px; width: calc(100% - 16px); font-size: .74rem; }
+    .item-row { gap: 16px; padding: 12px 0 20px; }
+    .item-body h3 { font-size: 1.02rem; }
+    .item-media { width: 120px; height: 120px; }
+    .add, .item-media .stepper { bottom: -15px; height: 30px; }
     .content, .topbar, .track { padding-left: 16px; padding-right: 16px; }
   }
 </style>

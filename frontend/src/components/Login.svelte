@@ -87,7 +87,7 @@
     min-height: 100vh; padding: 24px;
     background: linear-gradient(180deg, #fdfdfd 0%, #f4f4f4 100%);
     color: #1c1c1c;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
   }
   .login-box {
     width: 360px;
@@ -98,7 +98,7 @@
     padding: 32px;
     box-shadow: 0 18px 50px rgba(0, 0, 0, .07);
   }
-  .brand { text-align: center; font-size: 1.55rem; font-weight: 800; letter-spacing: -.02em; }
+  .brand { font-family: var(--font-serif); text-align: center; font-size: 1.55rem; font-weight: 700; letter-spacing: -.01em; }
   .brand span { color: #2e8b57; }
   .sub { text-align: center; color: #7a7a7a; font-size: .84rem; margin: 7px 0 26px; }
   .field { margin-bottom: 14px; }
