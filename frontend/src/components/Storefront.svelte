@@ -8,6 +8,12 @@
     MEAL: '🍛', POR: '🫓', CHK: '🍗', SNACK: '🍟',
     PUR: '🥘', DIH: '🍚', IDP: '🍜', CHP: '🍲',
   };
+  const IMAGES = {
+    MEAL: '/food/meal.jpg',
+    POR: '/food/porotta.jpg',
+    CHP: '/food/chapati.jpg',
+    CHK: '/food/chicken-curry.jpg',
+  };
   const ART = ['#fff1e6', '#e8f5e9', '#fdecea', '#fff8e1', '#e3f2fd', '#f3e5f5'];
 
   let items = $state([]);
@@ -26,6 +32,18 @@
 
   let tracked = $state(null);
   let pollTimer = null;
+  let installEvent = $state(null);
+
+  function captureInstall(e) {
+    e.preventDefault();
+    installEvent = e;
+  }
+
+  async function install() {
+    if (!installEvent) return;
+    installEvent.prompt();
+    try { await installEvent.userChoice; } finally { installEvent = null; }
+  }
 
   const money = (paise) => paise % 100 === 0
     ? `₹${paise / 100}`
@@ -136,6 +154,7 @@
   }
 
   onMount(async () => {
+    window.addEventListener('beforeinstallprompt', captureInstall);
     try {
       const menu = await getMenu();
       items = menu.items ?? [];
@@ -159,7 +178,10 @@
     }
   });
 
-  onDestroy(stopPolling);
+  onDestroy(() => {
+    stopPolling();
+    window.removeEventListener('beforeinstallprompt', captureInstall);
+  });
 </script>
 
 <div class="storefront">
@@ -168,6 +190,9 @@
     <div class="top-actions">
       {#if wallet !== null}
         <span class="wallet">₹{(wallet / 100).toFixed(2)}</span>
+      {/if}
+      {#if installEvent}
+        <button class="ghost" onclick={install}>Install</button>
       {/if}
       <button class="ghost" onclick={onlogout}>Logout</button>
     </div>
@@ -225,7 +250,13 @@
                   <button class="add" onclick={() => add(item.code)}>ADD <span>+</span></button>
                 {/if}
               </div>
-              <div class="card-art" style="background:{artwork(item.code)}" aria-hidden="true">{emoji(item.code)}</div>
+              <div class="card-art">
+                {#if IMAGES[item.code]}
+                  <img src={IMAGES[item.code]} alt={item.item_name} loading="lazy" />
+                {:else}
+                  <span class="card-emoji" style="background:{artwork(item.code)}">{emoji(item.code)}</span>
+                {/if}
+              </div>
             </article>
           {/each}
         </section>
@@ -249,7 +280,13 @@
                   <button class="add" onclick={() => add(item.code)}>ADD <span>+</span></button>
                 {/if}
               </div>
-              <div class="card-art" style="background:{artwork(item.code)}" aria-hidden="true">{emoji(item.code)}</div>
+              <div class="card-art">
+                {#if IMAGES[item.code]}
+                  <img src={IMAGES[item.code]} alt={item.item_name} loading="lazy" />
+                {:else}
+                  <span class="card-emoji" style="background:{artwork(item.code)}">{emoji(item.code)}</span>
+                {/if}
+              </div>
             </article>
           {/each}
         </section>
@@ -263,6 +300,8 @@
       <button class="primary" onclick={() => { cartOpen = true; askNotifyPermission(); }}>View Cart →</button>
     </div>
   {/if}
+
+  <footer class="credits"><a href="/food/CREDITS.md">Photo credits</a></footer>
 </div>
 
 {#if cartOpen}
@@ -436,10 +475,17 @@
     height: 108px;
     flex-shrink: 0;
     border-radius: 14px;
+    overflow: hidden;
+    align-self: center;
+    background: #f4f4f4;
+  }
+  .card-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card-emoji {
+    width: 100%;
+    height: 100%;
     display: grid;
     place-items: center;
     font-size: 2.8rem;
-    align-self: center;
   }
 
   .add {
@@ -515,6 +561,10 @@
   .primary:hover:not(:disabled) { background: #26764a; }
   .primary:disabled { opacity: .5; cursor: default; }
   .wide { width: 100%; margin-top: 1rem; padding: .85rem; }
+
+  .credits { text-align: center; padding: 2rem 0 1rem; font-size: .68rem; }
+  .credits a { color: #aaa; text-decoration: none; }
+  .credits a:hover { color: #777; }
 
   .overlay {
     position: fixed;

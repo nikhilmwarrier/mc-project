@@ -1,51 +1,91 @@
 /**
  * Thin wrapper around the canteen backend HTTP API.
  * All paths are relative so the Vite proxy handles host/port.
+ *
+ * Customer and admin sessions are stored separately: being signed in as a
+ * customer never grants the dashboard. Requests use the session for the
+ * current route, and /admin always uses the admin session.
  */
 
-let _token = null;
-let _role = null;
+const SESSION_PREFIX = 'canteen.session.';
+const CREDS_PREFIX = 'canteen.creds.';
 
-// Survive a reload or direct navigation to /admin.
-try {
-  _token = sessionStorage.getItem('canteen_token');
-  _role = sessionStorage.getItem('canteen_role');
-} catch { /* private mode */ }
+function read(key) {
+  try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
+}
+
+function write(key, value) {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(value));
+  } catch { /* private mode / quota */ }
+}
+
+const sessions = {
+  customer: read(SESSION_PREFIX + 'customer'),
+  admin: read(SESSION_PREFIX + 'admin'),
+};
+const credentials = {
+  customer: read(CREDS_PREFIX + 'customer'),
+  admin: read(CREDS_PREFIX + 'admin'),
+};
+
+export const routeScope = () =>
+  window.location.pathname.startsWith('/admin') ? 'admin' : 'customer';
 
 export const auth = {
-  get token() { return _token; },
-  get role()  { return _role; },
-  get isAdmin() { return _role === 'admin'; },
+  get scope() { return routeScope(); },
+  get token() { return sessions[routeScope()]?.token ?? null; },
+  get role() { return sessions[routeScope()]?.role ?? null; },
+  get isAdmin() { return this.role === 'admin'; },
 
-  async login(principal, password) {
+  session(scope = routeScope()) { return sessions[scope]; },
+  hasSession(scope = routeScope()) { return !!sessions[scope]?.token; },
+  savedCredentials(scope = routeScope()) { return credentials[scope]; },
+
+  async login(principal, password, scope = routeScope()) {
     const res = await api('/auth/login', {
       method: 'POST',
       body: { principal, password },
       noAuth: true,
     });
-    _token = res.token;
-    _role  = res.role;
-    try {
-      sessionStorage.setItem('canteen_token', _token);
-      sessionStorage.setItem('canteen_role', _role);
-    } catch { /* private mode */ }
+    sessions[scope] = { token: res.token, role: res.role, principal };
+    write(SESSION_PREFIX + scope, sessions[scope]);
+    // Cached so the login form is prefilled next time on this device.
+    credentials[scope] = { principal, password };
+    write(CREDS_PREFIX + scope, credentials[scope]);
     return res;
   },
 
-  logout() {
-    _token = null;
-    _role = null;
-    try {
-      sessionStorage.removeItem('canteen_token');
-      sessionStorage.removeItem('canteen_role');
-    } catch { /* private mode */ }
+  // Logging in as an admin from the storefront moves the fresh token into the
+  // admin slot instead of leaving an admin token usable by the customer app.
+  promoteToAdmin(from = routeScope()) {
+    if (from === 'admin') return;
+    sessions.admin = sessions[from];
+    write(SESSION_PREFIX + 'admin', sessions.admin);
+    credentials.admin = credentials[from];
+    write(CREDS_PREFIX + 'admin', credentials.admin);
+    credentials[from] = null;
+    write(CREDS_PREFIX + from, null);
+    sessions[from] = null;
+    write(SESSION_PREFIX + from, null);
+  },
+
+  logout(scope = routeScope()) {
+    sessions[scope] = null;
+    write(SESSION_PREFIX + scope, null);
+  },
+
+  clearCredentials(scope = routeScope()) {
+    credentials[scope] = null;
+    write(CREDS_PREFIX + scope, null);
   },
 };
 
 /**
- * Internal fetch helper. Automatically attaches the JWT and serialises body.
+ * Internal fetch helper. Attaches the route's JWT and serialises the body.
  */
-async function api(path, { method = 'GET', body, noAuth = false, query } = {}) {
+async function api(path, { method = 'GET', body, noAuth = false, query, scope } = {}) {
   const url = new URL(path, window.location.origin);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
@@ -53,8 +93,11 @@ async function api(path, { method = 'GET', body, noAuth = false, query } = {}) {
     }
   }
 
+  const active = scope ?? routeScope();
   const headers = { 'Content-Type': 'application/json' };
-  if (!noAuth && _token) headers['Authorization'] = `Bearer ${_token}`;
+  if (!noAuth && sessions[active]?.token) {
+    headers['Authorization'] = `Bearer ${sessions[active].token}`;
+  }
 
   const res = await fetch(url.toString(), {
     method,
@@ -73,13 +116,13 @@ async function api(path, { method = 'GET', body, noAuth = false, query } = {}) {
 }
 
 // ── Auth ────────────────────────────────────────────────────────────────────
-export const getMe = () => api('/auth/me');
+export const getMe = (scope) => api('/auth/me', { scope });
 
 // ── Users ───────────────────────────────────────────────────────────────────
 export const getUsers     = ()          => api('/users');
 export const createUser   = (body)      => api('/users', { method: 'POST', body });
-export const topUp      = (id, paise) => api(`/users/${id}/topup`, { method: 'POST', body: { amount_paise: paise } });
-export const getWallet  = (userId)    => api('/wallet', { query: { user_id: userId } });
+export const topUp        = (id, paise) => api(`/users/${id}/topup`, { method: 'POST', body: { amount_paise: paise } });
+export const getWallet    = (userId)    => api('/wallet', { query: { user_id: userId } });
 
 // ── Menu ────────────────────────────────────────────────────────────────────
 export const getMenu       = (all = false) => api('/menu', { query: { all: all ? 1 : undefined } });

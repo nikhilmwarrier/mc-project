@@ -1,10 +1,12 @@
 <script>
   import { auth, getMe } from '../api.js';
 
-  let { onlogin } = $props();
+  let { onlogin, scope = 'customer', requireRole = null } = $props();
 
-  let principal = $state('');
-  let password  = $state('');
+  // svelte-ignore state_referenced_locally
+  const saved = auth.savedCredentials(scope);
+  let principal = $state(saved?.principal ?? '');
+  let password  = $state(saved?.password ?? '');
   let error     = $state('');
   let loading   = $state(false);
 
@@ -12,8 +14,14 @@
     error = '';
     loading = true;
     try {
-      await auth.login(principal, password);
-      const me = await getMe();
+      await auth.login(principal, password, scope);
+      const me = await getMe(scope);
+      if (requireRole && me.role !== requireRole) {
+        auth.logout(scope);
+        auth.clearCredentials(scope);
+        error = 'Admin access only';
+        return;
+      }
       onlogin(me);
     } catch (e) {
       error = e.message;
@@ -26,7 +34,7 @@
 <div class="login-wrap">
   <div class="login-box">
     <div class="brand">CAMPUS <span>KITCHEN</span></div>
-    <p class="sub">Sign in with your roll number and PIN</p>
+    <p class="sub">{scope === 'admin' ? 'Staff sign in' : 'Sign in with your roll number and PIN'}</p>
 
     <form onsubmit={(e) => { e.preventDefault(); submit(); }}>
       <div class="field">
