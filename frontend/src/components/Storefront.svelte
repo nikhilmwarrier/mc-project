@@ -498,6 +498,13 @@
     background: transparent;
     color: #1b1b1b;
   }
+  /* The container owns the focus ring; the inner input must not add another. */
+  .searchbox input:focus,
+  .searchbox input:focus-visible {
+    outline: none;
+    box-shadow: none;
+    border-color: transparent;
+  }
 
   .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
@@ -586,10 +593,10 @@
   .add {
     position: absolute;
     left: 50%;
-    bottom: -16px;
+    bottom: -20px;
     transform: translateX(-50%);
     width: calc(100% - 16px);
-    height: 32px;
+    height: 40px;
     border: 1px solid #e2e2e2;
     background: #fff;
     color: #2e8b57;
@@ -600,7 +607,7 @@
     justify-content: center;
     font-weight: 800;
     letter-spacing: .07em;
-    font-size: .72rem;
+    font-size: .8rem;
     font-family: inherit;
     cursor: pointer;
     box-shadow: 0 3px 10px rgba(0, 0, 0, .14);
@@ -613,10 +620,10 @@
   .item-media .stepper {
     position: absolute;
     left: 50%;
-    bottom: -16px;
+    bottom: -20px;
     transform: translateX(-50%);
     width: calc(100% - 16px);
-    height: 32px;
+    height: 40px;
     margin: 0;
     justify-content: space-between;
     border: 1px solid #e2e2e2;
@@ -775,10 +782,10 @@
   .credits a:hover { color: #777; }
 
   @media (max-width: 480px) {
-    .item-row { gap: 16px; padding: 12px 0 20px; }
+    .item-row { gap: 16px; padding: 12px 0 24px; }
     .item-body h3 { font-size: 1.02rem; }
     .item-media { width: 120px; height: 120px; }
-    .add, .item-media .stepper { bottom: -15px; height: 30px; }
+    .add, .item-media .stepper { bottom: -19px; height: 38px; font-size: .78rem; }
     .content, .topbar, .track { padding-left: 16px; padding-right: 16px; }
   }
 </style>
