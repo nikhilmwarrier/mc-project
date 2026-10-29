@@ -57,6 +57,8 @@ func NewRouter(cfg Config, db *sql.DB, queues *backend.Service) http.Handler {
 	mux.HandleFunc("GET /queue", s.protect(s.handleQueue))
 	mux.HandleFunc("POST /queue/{lane}/ack", s.adminOnly(s.handleAckQueue))
 
+	mountSPA(mux, cfg.WebDir)
+
 	return recoverMiddleware(logMiddleware(corsMiddleware(cfg.CORSOrigins, mux)))
 }
 

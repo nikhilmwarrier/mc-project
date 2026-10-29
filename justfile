@@ -1,3 +1,5 @@
+set dotenv-load
+
 # Flash the canteen node: stamps ROLE + current laptop LAN IP, uploads, restores.
 # Usage: just a | just b | just kitchen   [PORT=/dev/cu.usbmodemXXX]
 port := "/dev/cu.usbmodem101"
@@ -16,6 +18,33 @@ build:
 test:
     cd backend/food-kiosk && go test ./...
     cd mqtt/tui && go test ./...
+
+# Run the full backend (server + MQTT client)
+backend:
+    # Set defaults; can be overridden with env vars before calling `just backend`
+    cd backend/food-kiosk && go run .
+
+# Build the UI and serve it with the API; prints a LAN URL + QR code at startup
+serve:
+    #!/bin/zsh
+    set -e
+    cd frontend
+    [ -d node_modules ] || pnpm install
+    pnpm build
+    cd ../backend/food-kiosk
+    exec go run .
+
+# Launch a local Mosquitto broker using the provided config
+mqtt:
+    # Optional: specify port via MQTT_PORT env var (default 1883)
+    mosquitto -c backend/food-kiosk/broker/mosquitto.conf -p $MQTT_PORT
+
+# Run the Svelte UI test-rig (dev server at http://localhost:5173)
+ui:
+    #!/bin/zsh
+    cd frontend
+    [ -d node_modules ] || pnpm install
+    pnpm dev
 
 [private]
 flash role:

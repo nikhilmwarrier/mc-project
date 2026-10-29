@@ -183,7 +183,6 @@
     color: #444;
   }
   .token.head { border-color: #2e8b57; color: #1f6f45; background: #e8f5ee; font-weight: 700; }
-  .empty { font-size: .75rem; color: #aaa; }
 
   .lane-card > button { margin-top: 4px; align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; height: 32px; }
 

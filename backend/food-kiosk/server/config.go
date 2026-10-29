@@ -26,6 +26,10 @@ type Config struct {
 	// A max of 0 disables the limiter.
 	LoginMaxAttempts int
 	LoginWindow      time.Duration
+
+	// WebDir is the built SPA directory to serve alongside the API. Empty
+	// disables static hosting (the server then serves the API only).
+	WebDir string
 }
 
 // minSecretLen is a floor on the HMAC key. A short shared secret is the easiest
@@ -73,6 +77,7 @@ func LoadConfig() (Config, error) {
 		AdminPassword:    os.Getenv("ADMIN_PASSWORD"),
 		LoginMaxAttempts: loginMax,
 		LoginWindow:      loginWindow,
+		WebDir:           Getenv("WEB_DIR", "../../frontend/dist"),
 	}
 
 	if (cfg.AdminPrincipal == "") != (cfg.AdminPassword == "") {
