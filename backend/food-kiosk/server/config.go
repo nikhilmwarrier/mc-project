@@ -30,10 +30,6 @@ type Config struct {
 	// WebDir is the built SPA directory to serve alongside the API. Empty
 	// disables static hosting (the server then serves the API only).
 	WebDir string
-
-	// TLSCert/TLSKey enable HTTPS when both are set.
-	TLSCert string
-	TLSKey  string
 }
 
 // minSecretLen is a floor on the HMAC key. A short shared secret is the easiest
@@ -82,12 +78,6 @@ func LoadConfig() (Config, error) {
 		LoginMaxAttempts: loginMax,
 		LoginWindow:      loginWindow,
 		WebDir:           Getenv("WEB_DIR", "../../frontend/dist"),
-		TLSCert:          os.Getenv("TLS_CERT"),
-		TLSKey:           os.Getenv("TLS_KEY"),
-	}
-
-	if (cfg.TLSCert == "") != (cfg.TLSKey == "") {
-		return Config{}, fmt.Errorf("TLS_CERT and TLS_KEY must be set together")
 	}
 
 	if (cfg.AdminPrincipal == "") != (cfg.AdminPassword == "") {

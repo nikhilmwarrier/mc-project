@@ -30,9 +30,7 @@ kiosk/curl ──HTTP──▶ backend ──MQTT──▶ Node 1 kitchen ──
 1. **Broker:** `mosquitto -c mqtt/mosquitto.conf` (LAN-open, lab only).
 2. **Fake backend:** `cd mqtt/tui && go run . -broker 127.0.0.1` — owns the queues, advances on button acks. Keys: `1/2/3` enqueue, `a/k/b` simulate a button, `q` quit.
 3. **Flash nodes:** `just a`, `just b`, `just kitchen` — stamps the role and this laptop's current LAN IP as `MQTT_HOST`, then uploads (default port `/dev/cu.usbmodem101`, override with `PORT=...`).
-4. **Real backend + UI:** `just serve` — builds the frontend, then serves the app and API together on `:8080` and prints a QR code for `https://<lan-ip>:8080` (or `http://` before TLS is set up). Scan it from a phone on the same Wi-Fi. Same server handles `/` (storefront) and `/admin` (staff dashboard); sign in with the bootstrapped admin or a customer’s roll number + PIN.
-
-   For HTTPS (needed for PWA install and notifications on a phone): `just tls` generates a certificate for the current LAN IP with mkcert. Install the printed root CA (`~/Library/Application Support/mkcert/rootCA.pem`) on the phone, then restart `just serve`. Re-run `just tls` after the laptop’s IP changes.
+4. **Real backend + UI:** `just serve` — builds the frontend, then serves the app and API together on `:8080` and prints a QR code for `http://<lan-ip>:8080`. Scan it from a phone on the same Wi-Fi. Same server handles `/` (storefront) and `/admin` (staff dashboard); sign in with the bootstrapped admin or a customer’s roll number + PIN.
 5. **UI development:** `cd frontend && pnpm dev` — Vite on `:5173` with hot reload, proxying `/auth`, `/users`, `/menu`, `/orders`, `/queue` to the backend on `:8080`.
 
 ## Hardware (per node, ~₹2,000 total for three)

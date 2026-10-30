@@ -74,11 +74,7 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	scheme := "http"
-	if cfg.TLSCert != "" {
-		scheme = "https"
-	}
-	url := publicURL(cfg.Addr, scheme)
+	url := publicURL(cfg.Addr)
 	log.Printf("frontend + API: %s", url)
 	if cfg.WebDir != "" {
 		if _, err := os.Stat(cfg.WebDir); err != nil {
@@ -93,13 +89,7 @@ func main() {
 	// signal and shut them both down cleanly.
 	go func() {
 		log.Printf("food-kiosk server listening on %s (auth required: %t)", cfg.Addr, cfg.AuthRequired)
-		var err error
-		if cfg.TLSCert != "" {
-			err = srv.ListenAndServeTLS(cfg.TLSCert, cfg.TLSKey)
-		} else {
-			err = srv.ListenAndServe()
-		}
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("server: %v", err)
 		}
 	}()
@@ -117,7 +107,7 @@ func main() {
 
 // publicURL builds the address printed in the QR code. A wildcard bind is
 // replaced with the laptop's LAN IPv4 so phones on the same Wi-Fi can reach it.
-func publicURL(addr, scheme string) string {
+func publicURL(addr string) string {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil || port == "" {
 		port = "8080"
@@ -131,7 +121,7 @@ func publicURL(addr, scheme string) string {
 			host = "127.0.0.1"
 		}
 	}
-	return scheme + "://" + net.JoinHostPort(host, port)
+	return "http://" + net.JoinHostPort(host, port)
 }
 
 // lanIPv4 prefers en0 then en1 (the same interfaces the flash recipe uses),

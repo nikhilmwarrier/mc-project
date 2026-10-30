@@ -160,11 +160,6 @@ goroutine → HTTP server. One Go process serves both the API and the built SPA.
   `en0`, then `en1`, then the default route — the same preference as `just a/b/kitchen`
   uses for `MQTT_HOST`, so the QR and the firmware agree.
   `PUBLIC_HOST` overrides the QR host; `ADDR` changes the port (default `:8080`).
-- **HTTPS:** set `TLS_CERT` + `TLS_KEY` (both or neither) and the server speaks TLS;
-  the QR switches to `https://`. `just tls` generates a locally-trusted cert for the
-  current LAN IP with mkcert. The phone must trust mkcert’s root CA for install/PWA
-  and notifications to work. Certs live in `certs/` (gitignored); regenerate after an
-  IP change.
 - `just serve` builds the frontend and starts this server.
 
 Config (env): `ADDR`, `DB_PATH`, `JWT_SECRET`, `JWT_TTL`, `AUTH_REQUIRED`,
@@ -388,8 +383,7 @@ the server's QR code.
 ## 9. Tooling
 
 ```
-just serve      # build frontend, run backend+API+SPA, print LAN QR (HTTPS if certs exist)
-just tls        # mkcert cert for this LAN IP
+just serve      # build frontend, run backend+API+SPA, print LAN QR
 just backend    # Go server only (serves the last frontend build)
 just ui         # Vite dev server with proxy
 just mqtt       # Mosquitto with the bench config
@@ -419,7 +413,6 @@ with `pnpm build` and browser flows.
 - Veg/non-veg flags, ratings, and item descriptions — no data in the menu schema.
   Item cards show only name, price, and photo.
 - Offline caching / Web Push — the service worker is install-only; notifications
-  require the page to be open. PWA install and notifications need HTTPS (or
-  localhost) with the mkcert CA trusted on the phone.
+  require the page to be open.
 - Daily-resetting tokens (uses `orders.id`), cloud broker, OTA, native apps.
 - HTTP beyond the routes in section 5.
