@@ -28,11 +28,27 @@ backend:
 serve:
     #!/bin/zsh
     set -e
+    root=$PWD
     cd frontend
     [ -d node_modules ] || pnpm install
     pnpm build
-    cd ../backend/food-kiosk
+    cd "$root/backend/food-kiosk"
+    if [ -f "$root/certs/dev.pem" ] && [ -f "$root/certs/dev-key.pem" ]; then
+      export TLS_CERT="$root/certs/dev.pem" TLS_KEY="$root/certs/dev-key.pem"
+    fi
     exec go run .
+
+# Generate a locally-trusted HTTPS certificate for this LAN IP
+tls:
+    #!/bin/zsh
+    set -e
+    ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1)
+    command -v mkcert >/dev/null || { echo "install mkcert first: brew install mkcert"; exit 1; }
+    mkcert -install
+    mkdir -p certs
+    mkcert -cert-file certs/dev.pem -key-file certs/dev-key.pem "$ip" localhost 127.0.0.1
+    echo "generated certs/dev.pem for $ip"
+    echo "Phone trust: install $(mkcert -CAROOT)/rootCA.pem"
 
 # Launch a local Mosquitto broker using the provided config
 mqtt:

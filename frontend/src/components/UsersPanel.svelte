@@ -32,16 +32,27 @@
     } catch (e) { push(`Create failed: ${e.message}`); }
   }
 
-  // Top-up
+  // Top-up — entered in rupees, truncated to two decimals, sent as paise.
   let topupId = $state('');
-  let topupAmt = $state('');
+  let topupRupees = $state('');
+
+  function rupeesToPaise(value) {
+    const clean = String(value).trim().replace(/[₹,\s]/g, '');
+    const m = /^(\d+)(?:\.(\d+))?$/.exec(clean);
+    if (!m) return 0;
+    const fraction = (m[2] ?? '').slice(0, 2).padEnd(2, '0');
+    return Number(m[1]) * 100 + Number(fraction);
+  }
+
   async function doTopup() {
     if (!topupId) { push('Select a user'); return; }
+    const amountPaise = rupeesToPaise(topupRupees);
+    if (amountPaise <= 0) { push('Enter a valid amount'); return; }
     haptic(10);
     try {
-      const res = await topUp(topupId, parseInt(topupAmt, 10));
+      const res = await topUp(topupId, amountPaise);
       push(`${nameOf(topupId)} → ₹${(res.balance_paise / 100).toFixed(2)}`);
-      topupAmt = '';
+      topupRupees = '';
     } catch (e) { push(`Top-up failed: ${e.message}`); }
   }
 
@@ -82,7 +93,10 @@
           {/each}
         </select>
       </div>
-      <div class="field"><label for="topup-amt">Amount (paise)</label><input id="topup-amt" type="number" bind:value={topupAmt} placeholder="10000 = ₹100" /></div>
+      <div class="field">
+        <label for="topup-amt">Amount (₹)</label>
+        <input id="topup-amt" type="text" inputmode="decimal" bind:value={topupRupees} placeholder="eg: ₹5000.00" />
+      </div>
       <button class="primary" onclick={doTopup}>Top up</button>
     </div>
 

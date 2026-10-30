@@ -134,7 +134,9 @@
     if (becameReady.length) {
       becameReady.forEach(o => notifyReady(o.id));
       hapticPattern([140, 90, 140, 90, 140]); // beep-beep-beep, once per transition
+      // Only one modal at a time: a ready token always wins over cart/success.
       cartOpen = false;
+      placed = null;
       tokenOpen = true;
     }
     if (!tracked.some(isShowable)) tokenOpen = false;
@@ -148,6 +150,21 @@
     persistTracked();
     ensurePolling();
     checkTracked();
+  }
+
+  function openToken() {
+    haptic(8);
+    cartOpen = false;
+    placed = null;
+    tokenOpen = true;
+  }
+
+  function openCart() {
+    haptic(6);
+    tokenOpen = false;
+    placed = null;
+    cartOpen = true;
+    askNotifyPermission();
   }
 
   function askNotifyPermission() {
@@ -166,6 +183,7 @@
       placed = { id: res.id, special: cartHasSpecial };
       cart = {};
       cartOpen = false;
+      tokenOpen = false;
       await refreshWallet();
       startTracking(res.id, cartHasSpecial ? 2 : 1);
     } catch (e) {
@@ -357,7 +375,7 @@
       <div class="cartbar-info">
         <strong>{cartCount} item{cartCount > 1 ? 's' : ''} · {money(cartTotal)}</strong>
       </div>
-      <button class="primary" onclick={() => { haptic(6); cartOpen = true; askNotifyPermission(); }}>
+      <button class="primary" onclick={openCart}>
         <ShoppingBag size={16} strokeWidth={2} aria-hidden="true" />
         View Cart
         <ChevronRight size={15} strokeWidth={2.25} aria-hidden="true" />
@@ -369,7 +387,7 @@
 </div>
 
 {#if showTokens.length && !tokenOpen}
-  <button class="fab" class:raised={cartCount > 0} onclick={() => { haptic(8); tokenOpen = true; }}>
+  <button class="fab" class:raised={cartCount > 0} onclick={openToken}>
     <Ticket size={17} strokeWidth={2} aria-hidden="true" />
     Show token ({showTokens.length})
   </button>
